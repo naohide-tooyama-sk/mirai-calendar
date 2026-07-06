@@ -1,0 +1,4 @@
+.git
+.DS_Store
+src/private/cache
+src/uploads

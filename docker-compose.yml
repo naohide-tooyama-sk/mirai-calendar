@@ -1,0 +1,13 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mirai-calender-app
+    ports:
+      - "9001:80"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      TZ: Asia/Tokyo
+    restart: unless-stopped
