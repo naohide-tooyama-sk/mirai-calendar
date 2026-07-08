@@ -348,6 +348,12 @@
 		const upcoming = collectUpcomingCapacityEvents_();
 		const monthTotal = getCurrentMonthCapacityTotals_();
 
+		if (monthTotal.taggedCount <= 0) {
+			body.innerHTML = '';
+			section.style.display = 'none';
+			return;
+		}
+
 		const itemsHtml = upcoming.length
 			? '<div class="attraction-list">' + upcoming.map((item) => {
 				return [
@@ -425,18 +431,20 @@
 		const eventsByDate = payload.eventsByDate || {};
 		let current = 0;
 		let max = 0;
+		let taggedCount = 0;
 
 		Object.keys(eventsByDate).forEach((dateKey) => {
 			const events = eventsByDate[dateKey] || [];
 			events.forEach((ev) => {
 				const cap = parseCapacityTag_(ev.description || '');
 				if (!cap) return;
+				taggedCount += 1;
 				current += cap.current;
 				max += cap.max;
 			});
 		});
 
-		return { current, max };
+		return { current, max, taggedCount };
 	}
 
 	function parseCapacityTag_(description) {

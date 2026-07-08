@@ -1,2 +1,6 @@
-src/private/
+src/private/*
+!src/private/app_config.php
+src/private/app_config.local.php
+src/private/cache/
+src/private/data/
 src/uploads/
