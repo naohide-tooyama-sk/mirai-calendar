@@ -8,20 +8,32 @@ function app_root_dir(): string {
 	return dirname(__DIR__);
 }
 
+function storage_root_dir(): string {
+	$root = trim((string)(getenv('APP_STORAGE_ROOT') ?: ''));
+	if ($root === '') {
+		return app_root_dir();
+	}
+	return rtrim(str_replace('\\', '/', $root), '/');
+}
+
 function private_dir(): string {
 	return app_root_dir() . '/private';
 }
 
+function storage_private_dir(): string {
+	return storage_root_dir() . '/private';
+}
+
 function data_dir(): string {
-	return private_dir() . '/data';
+	return storage_private_dir() . '/data';
 }
 
 function cache_dir(): string {
-	return private_dir() . '/cache';
+	return storage_private_dir() . '/cache';
 }
 
 function uploads_dir(): string {
-	return app_root_dir() . '/uploads';
+	return storage_root_dir() . '/uploads';
 }
 
 function app_base_path(): string {
@@ -47,7 +59,7 @@ function defaults_config(): array {
 
 function ensure_storage_dirs(): void {
 	$dirs = [
-		private_dir(),
+		storage_private_dir(),
 		data_dir(),
 		cache_dir(),
 		uploads_dir(),

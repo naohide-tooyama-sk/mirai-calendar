@@ -10,4 +10,5 @@ services:
       - ./src:/var/www/html
     environment:
       TZ: Asia/Tokyo
+      APP_STORAGE_ROOT: /var/www/html
     restart: unless-stopped
