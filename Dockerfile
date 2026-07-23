@@ -14,5 +14,6 @@ RUN mkdir -p /var/data/private/data /var/data/private/cache /var/data/uploads \
 	&& chown -R www-data:www-data /var/www/html /var/data \
 	&& chmod -R u+rwX,g+rwX /var/www/html /var/data
 
-# Enable common Apache module in case .htaccess is used.
-RUN a2enmod rewrite
+# Avoid AH00534 (More than one MPM loaded) by pinning Apache to prefork.
+RUN a2dismod mpm_event mpm_worker || true \
+	&& a2enmod mpm_prefork rewrite
