@@ -80,6 +80,7 @@ function ensure_storage_files(): void {
 		data_dir() . '/calendars.txt' => [],
 		data_dir() . '/images.txt' => [],
 		data_dir() . '/holidays.txt' => [],
+		data_dir() . '/events.txt' => [],
 	];
 
 	foreach ($defaults as $path => $payload) {
@@ -189,6 +190,232 @@ function save_runtime_config(array $cfg): array {
 	$merged = array_intersect_key($merged, array_flip(['headerRotationSec', 'timezone', 'headerImageIds', 'footerImageIds']));
 	write_json_txt(data_dir() . '/config.txt', $merged);
 	return $merged;
+}
+
+function get_recent_events_config(): array {
+	ensure_storage_files();
+	$rows = read_json_txt(data_dir() . '/events.txt', []);
+	if (!is_array($rows)) {
+		return [];
+	}
+
+	$out = [];
+	foreach (array_slice($rows, 0, 10) as $row) {
+		if (!is_array($row)) {
+			continue;
+		}
+
+		$eventId = trim((string)($row['eventId'] ?? ''));
+		if ($eventId === '') {
+			continue;
+		}
+
+		$out[] = [
+			'eventId' => $eventId,
+			'dateText' => trim((string)($row['dateText'] ?? '')),
+			'titleText' => trim((string)($row['titleText'] ?? '')),
+			'remainingText' => trim((string)($row['remainingText'] ?? ($row['peopleText'] ?? ''))),
+		];
+	}
+
+	return $out;
+}
+
+function save_recent_events_config(array $rows): array {
+	$out = [];
+	foreach (array_slice($rows, 0, 10) as $row) {
+		if (!is_array($row)) {
+			continue;
+		}
+
+		$eventId = trim((string)($row['eventId'] ?? ''));
+		if ($eventId === '') {
+			continue;
+		}
+
+		$out[] = [
+			'eventId' => $eventId,
+			'dateText' => trim((string)($row['dateText'] ?? '')),
+			'titleText' => trim((string)($row['titleText'] ?? '')),
+			'remainingText' => trim((string)($row['remainingText'] ?? ($row['peopleText'] ?? ''))),
+		];
+	}
+
+	write_json_txt(data_dir() . '/events.txt', $out);
+	return $out;
+}
+
+function get_cached_event_options(): array {
+	$options = [];
+	foreach (get_cached_events_catalog() as $event) {
+		$options[] = [
+			'eventId' => $event['id'],
+			'title' => $event['title'],
+			'startIso' => $event['startIso'],
+			'isAllDay' => $event['isAllDay'],
+			'defaultDateText' => format_cached_event_datetime_text($event),
+			'defaultTitleText' => (string)$event['title'],
+			'label' => format_cached_event_label($event),
+		];
+	}
+
+	return $options;
+}
+
+function resolve_recent_events_payload(): array {
+	$configured = get_recent_events_config();
+	if ($configured === []) {
+		return [];
+	}
+
+	$catalog = [];
+	foreach (get_cached_events_catalog() as $event) {
+		$catalog[$event['id']] = $event;
+	}
+
+	$now = new DateTime('now');
+	$out = [];
+	foreach ($configured as $row) {
+		$eventId = (string)$row['eventId'];
+		if (!isset($catalog[$eventId])) {
+			continue;
+		}
+
+		$event = $catalog[$eventId];
+		$start = parse_event_datetime($event['startIso']);
+		if (!$start || $start < $now) {
+			continue;
+		}
+
+		$out[] = [
+			'eventId' => $event['id'],
+			'dateText' => (string)($row['dateText'] ?? format_cached_event_datetime_text($event)),
+			'titleText' => (string)($row['titleText'] ?? $event['title']),
+			'remainingText' => (string)($row['remainingText'] ?? ($row['peopleText'] ?? '')),
+			'id' => $event['id'],
+			'calendarId' => $event['calendarId'],
+			'calendarName' => $event['calendarName'],
+			'title' => $event['title'],
+			'startIso' => $event['startIso'],
+			'endIso' => $event['endIso'],
+			'isAllDay' => $event['isAllDay'],
+			'location' => $event['location'],
+			'description' => $event['description'],
+		];
+	}
+
+	return $out;
+}
+
+function get_cached_events_catalog(): array {
+	ensure_storage_files();
+	$files = glob(cache_dir() . '/month-*.txt');
+	if (!is_array($files) || $files === []) {
+		return [];
+	}
+
+	sort($files, SORT_STRING);
+	$events = [];
+	foreach ($files as $path) {
+		$payload = read_json_txt($path, []);
+		$eventsByDate = is_array($payload['eventsByDate'] ?? null) ? $payload['eventsByDate'] : [];
+		foreach ($eventsByDate as $list) {
+			if (!is_array($list)) {
+				continue;
+			}
+			foreach ($list as $event) {
+				$normalized = normalize_cached_event_record($event);
+				if ($normalized === null) {
+					continue;
+				}
+				$events[] = $normalized;
+			}
+		}
+	}
+
+	usort($events, static function (array $a, array $b): int {
+		$cmp = strcmp((string)$a['startIso'], (string)$b['startIso']);
+		if ($cmp !== 0) {
+			return $cmp;
+		}
+		$cmp = strcmp((string)$a['title'], (string)$b['title']);
+		if ($cmp !== 0) {
+			return $cmp;
+		}
+		return strcmp((string)$a['id'], (string)$b['id']);
+	});
+
+	$unique = [];
+	foreach ($events as $event) {
+		if (isset($unique[$event['id']])) {
+			continue;
+		}
+		$unique[$event['id']] = $event;
+	}
+
+	return array_values($unique);
+}
+
+function normalize_cached_event_record($event): ?array {
+	if (!is_array($event)) {
+		return null;
+	}
+
+	$id = trim((string)($event['id'] ?? ''));
+	$startIso = trim((string)($event['startIso'] ?? ''));
+	$endIso = trim((string)($event['endIso'] ?? ''));
+	if ($id === '' || $startIso === '' || $endIso === '') {
+		return null;
+	}
+
+	return [
+		'id' => $id,
+		'calendarId' => trim((string)($event['calendarId'] ?? '')),
+		'calendarName' => (string)($event['calendarName'] ?? ''),
+		'title' => trim((string)($event['title'] ?? '')) ?: '(無題)',
+		'startIso' => $startIso,
+		'endIso' => $endIso,
+		'isAllDay' => normalize_bool($event['isAllDay'] ?? false, false),
+		'location' => (string)($event['location'] ?? ''),
+		'description' => (string)($event['description'] ?? ''),
+	];
+}
+
+function parse_event_datetime(string $iso): ?DateTime {
+	$iso = trim($iso);
+	if ($iso === '') {
+		return null;
+	}
+
+	try {
+		return new DateTime($iso);
+	} catch (Throwable $e) {
+		return null;
+	}
+}
+
+function format_cached_event_label(array $event): string {
+	$start = parse_event_datetime((string)($event['startIso'] ?? ''));
+	$title = trim((string)($event['title'] ?? '')) ?: '(無題)';
+	if (!$start) {
+		return $title;
+	}
+
+	return format_cached_event_datetime_text($event) . ' ' . $title;
+}
+
+function format_cached_event_datetime_text(array $event): string {
+	$start = parse_event_datetime((string)($event['startIso'] ?? ''));
+	if (!$start) {
+		return '';
+	}
+
+	$prefix = $start->format('Y/m/d');
+	if (!empty($event['isAllDay'])) {
+		return $prefix . ' 終日';
+	}
+
+	return $prefix . ' ' . $start->format('H:i');
 }
 
 function normalize_image_ids(array $ids, int $limit = 3): array {
@@ -760,6 +987,7 @@ function bootstrap_calendar_payload(): array {
 			'headerImageUrls' => array_values(array_map(static fn($img) => $img['url'], $headerImages)),
 			'footerImageUrl' => isset($footerImages[0]['url']) ? (string)$footerImages[0]['url'] : '',
 		],
+		'recentEvents' => resolve_recent_events_payload(),
 		'calendars' => get_calendars(false),
 		'cacheData' => get_cached_month_data($year, $month),
 		'adminUrl' => app_url('manage.php'),

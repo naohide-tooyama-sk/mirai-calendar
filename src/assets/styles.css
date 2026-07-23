@@ -266,15 +266,19 @@
 	}
 
 	.attraction-item {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: 6px;
 		width: 100%;
 		padding: 8px;
 		border: 1px solid rgba(0, 0, 0, 0.18);
 		background: rgba(255, 255, 255, 0.16);
 		color: #111111;
 		text-align: left;
-		cursor: pointer;
+		cursor: default;
 		appearance: none;
+		white-space: nowrap;
+		overflow: hidden;
 	}
 
 	.page-shell.layout-2col .attraction-item {
@@ -301,10 +305,38 @@
 		word-break: break-word;
 	}
 
+	.attraction-event-link {
+		display: inline;
+		width: auto;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: #111111;
+		text-align: left;
+		cursor: pointer;
+		font: inherit;
+	}
+
+	.attraction-inline-click {
+		white-space: nowrap;
+	}
+
+	.attraction-inline-sep {
+		opacity: 0.7;
+		white-space: nowrap;
+	}
+
+	.attraction-event-start {
+		font-size: 12px;
+		font-weight: 700;
+		margin-bottom: 0;
+	}
+
 	.attraction-event-count {
-		margin-top: 4px;
+		margin-top: 0;
 		font-size: 12px;
 		color: #111111;
+		white-space: nowrap;
 	}
 
 	.attraction-empty {
@@ -324,10 +356,9 @@
 	}
 
 	.page-shell.layout-2row .attraction-item {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
+		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 6px;
 		padding: 3px 0;
 		border: 0;
 		background: transparent;
@@ -341,7 +372,9 @@
 	.page-shell.layout-2row .attraction-event-title {
 		white-space: nowrap;
 		overflow: hidden;
-		text-overflow: clip;
+		text-overflow: ellipsis;
+		min-width: 0;
+		flex: 1;
 	}
 
 	.page-shell.layout-2row .attraction-event-count {
@@ -367,21 +400,6 @@
 		letter-spacing: 0.08em;
 		line-height: 1;
 		color: var(--gold);
-	}
-
-	.gear-link {
-		position: absolute;
-		right: 14px;
-		top: -2px;
-		opacity: 0.55;
-		font-size: 22px;
-		text-decoration: none;
-		color: var(--gold);
-		transition: opacity 180ms ease;
-	}
-
-	.gear-link:hover {
-		opacity: 0.9;
 	}
 
 	.btn {

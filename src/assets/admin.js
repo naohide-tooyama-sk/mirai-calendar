@@ -6,6 +6,8 @@
 		config: null,
 		calendars: [],
 		images: [],
+		recentEvents: [],
+		eventOptions: [],
 	};
 
 	renderShell();
@@ -56,6 +58,10 @@
 			'    <h3>カレンダー設定（最大5件）</h3>',
 			'    <div id="calendarRows"></div>',
 			'  </section>',
+			'  <section class="card">',
+			'    <h3>直近のイベント設定（最大10件）</h3>',
+			'    <div id="recentEventRows"></div>',
+			'  </section>',
 			'  <div class="row-2">',
 			'    <button class="btn" id="saveBtn">保存</button>',
 			'    <button class="btn" id="toCalendarBtn">カレンダー画面へ</button>',
@@ -90,6 +96,8 @@
 				state.config = res.config || {};
 				state.calendars = (res.calendars || []).slice(0, 5);
 				state.images = Array.isArray(res.images) ? res.images : [];
+				state.recentEvents = Array.isArray(res.recentEvents) ? res.recentEvents.slice(0, 10) : [];
+				state.eventOptions = Array.isArray(res.eventOptions) ? res.eventOptions : [];
 				fillForm();
 				hideBlockingOverlay();
 				setStatus('');
@@ -105,6 +113,7 @@
 		renderEnabledRows('header', 3);
 		renderEnabledRows('footer', 1);
 		renderCalendarRows();
+		renderRecentEventRows();
 		renderImageList();
 	}
 
@@ -160,6 +169,86 @@
 		holder.innerHTML = rows.join('');
 	}
 
+	function renderRecentEventRows() {
+		const holder = document.getElementById('recentEventRows');
+		const optionMap = buildEventOptionMap();
+		const rows = [];
+		for (let i = 0; i < 10; i++) {
+			const data = state.recentEvents[i] || {};
+			const selectedId = String(data.eventId || '');
+			const options = ['<option value="">未選択</option>'].concat(state.eventOptions.map((item) => {
+				const eventId = String(item.eventId || '');
+				const selected = eventId === selectedId ? ' selected' : '';
+				return '<option value="' + esc(eventId) + '"' + selected + '>' + esc(item.label || eventId) + '</option>';
+			}));
+
+			if (selectedId && !state.eventOptions.some((item) => String(item.eventId || '') === selectedId)) {
+				options.push('<option value="' + esc(selectedId) + '" selected>' + esc('未取得のイベント (' + selectedId + ')') + '</option>');
+			}
+
+			rows.push(
+				'<div class="row">' +
+				'<label>対象イベント ' +
+				(i + 1) +
+				'</label><select data-recent-event-id="' +
+				i +
+				'">' +
+				options.join('') +
+				'</select></div>' +
+				'</div>' +
+				'<div class="row"><label>日時テキスト</label><input data-recent-date-text="' +
+				i +
+				'" value="' +
+				esc(data.dateText || ((optionMap[selectedId] && optionMap[selectedId].defaultDateText) || '')) +
+				'" placeholder="2026/07/22 19:00 など" /></div>' +
+				'<div class="row"><label>イベント名テキスト</label><input data-recent-title-text="' +
+				i +
+				'" value="' +
+				esc(data.titleText || ((optionMap[selectedId] && optionMap[selectedId].defaultTitleText) || '')) +
+				'" placeholder="イベント名を入力" /></div>' +
+				'<div class="row"><label>残り人数テキスト</label><input data-recent-remaining-text="' +
+				i +
+				'" value="' +
+				esc(data.remainingText || data.peopleText || '') +
+				'" placeholder="残り3名 など" /></div>' +
+				'</div>'
+			);
+		}
+		holder.innerHTML = rows.join('');
+
+		holder.querySelectorAll('[data-recent-event-id]').forEach((selectEl) => {
+			selectEl.addEventListener('change', () => {
+				const idx = Number(selectEl.getAttribute('data-recent-event-id'));
+				if (Number.isNaN(idx)) return;
+				applyRecentEventDefaults(idx, (selectEl.value || '').trim(), optionMap);
+			});
+		});
+	}
+
+	function buildEventOptionMap() {
+		const map = {};
+		state.eventOptions.forEach((item) => {
+			const eventId = String(item.eventId || '');
+			if (!eventId) return;
+			map[eventId] = item;
+		});
+		return map;
+	}
+
+	function applyRecentEventDefaults(index, eventId, optionMap) {
+		const option = optionMap[eventId];
+		if (!option) return;
+
+		const dateInput = document.querySelector('[data-recent-date-text="' + index + '"]');
+		const titleInput = document.querySelector('[data-recent-title-text="' + index + '"]');
+		if (dateInput) {
+			dateInput.value = option.defaultDateText || '';
+		}
+		if (titleInput) {
+			titleInput.value = option.defaultTitleText || '';
+		}
+	}
+
 	function renderImageList() {
 		const holder = document.getElementById('imageList');
 		if (!state.images.length) {
@@ -212,6 +301,27 @@
 		return out;
 	}
 
+	function collectRecentEvents() {
+		const out = [];
+		for (let i = 0; i < 10; i++) {
+			const eventSelect = document.querySelector('[data-recent-event-id="' + i + '"]');
+			const dateInput = document.querySelector('[data-recent-date-text="' + i + '"]');
+			const titleInput = document.querySelector('[data-recent-title-text="' + i + '"]');
+			const remainingInput = document.querySelector('[data-recent-remaining-text="' + i + '"]');
+			const eventId = (eventSelect && eventSelect.value.trim()) || '';
+			if (!eventId) {
+				continue;
+			}
+			out.push({
+				eventId,
+				dateText: (dateInput && dateInput.value) || '',
+				titleText: (titleInput && titleInput.value) || '',
+				remainingText: (remainingInput && remainingInput.value) || '',
+			});
+		}
+		return out;
+	}
+
 	function save() {
 		const payload = {
 			headerRotationSec: Number(document.getElementById('headerRotationSec').value || 6),
@@ -219,6 +329,7 @@
 			headerImageIds: collectEnabledIds('header', 3),
 			footerImageIds: collectEnabledIds('footer', 1),
 			calendars: collectCalendars(),
+			recentEvents: collectRecentEvents(),
 		};
 
 		setStatus('保存中...');

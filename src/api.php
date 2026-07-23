@@ -41,6 +41,8 @@ try {
 					'config' => $cfg,
 					'calendars' => get_calendars(true),
 					'images' => $images,
+					'recentEvents' => get_recent_events_config(),
+					'eventOptions' => get_cached_event_options(),
 				]);
 				break;
 			}
@@ -55,6 +57,7 @@ try {
 					'footerImageIds' => (array)($payload['footerImageIds'] ?? []),
 				]);
 				save_calendars((array)($payload['calendars'] ?? []));
+				save_recent_events_config((array)($payload['recentEvents'] ?? []));
 				json_response(['ok' => true, 'message' => '保存しました。', 'config' => $cfg]);
 				break;
 			}

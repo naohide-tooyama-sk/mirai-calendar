@@ -24,6 +24,7 @@
 		liveRefreshTimer: null,
 		isInitialLoad: true,
 		requireInitialBlocking: false,
+		recentEvents: [],
 	};
 
 	renderShell();
@@ -90,7 +91,6 @@
 		}
 
 		app.innerHTML = [
-			'<a class="gear-link" href="' + esc(boot.adminUrl || 'manage.php') + '" title="管理">⚙</a>',
 			'<section class="spaced" id="titleZone"></section>',
 			'<section class="month-bar spaced">',
 			'<div class="month-nav">',
@@ -145,6 +145,7 @@
 		state.titleImages = headerImageUrls.filter(Boolean).slice(0, 3);
 		state.footerImageUrl = String(state.config.footerImageUrl || '');
 		state.calendars = boot.calendars || [];
+		state.recentEvents = Array.isArray(boot.recentEvents) ? boot.recentEvents : [];
 		const currentKey = getMonthKey(state.year, state.month);
 		if (boot.cacheData) {
 			state.monthCache[currentKey] = normalizeMonthPayload(boot.cacheData);
@@ -345,30 +346,33 @@
 		const body = document.getElementById('attractionBody');
 		if (!section || !body) return;
 
-		const upcoming = collectUpcomingCapacityEvents_();
-		const monthTotal = getCurrentMonthCapacityTotals_();
+		const upcoming = Array.isArray(state.recentEvents) ? state.recentEvents.filter((item) => item && item.eventId) : [];
+		state.attractionEvents = {};
 
-		if (monthTotal.taggedCount <= 0) {
+		if (!upcoming.length) {
 			body.innerHTML = '';
 			section.style.display = 'none';
 			return;
 		}
 
-		const itemsHtml = upcoming.length
-			? '<div class="attraction-list">' + upcoming.map((item) => {
-				return [
-					'<button type="button" class="attraction-item" data-attraction-event-id="' + esc(item.eventId) + '">',
-					'  <div class="attraction-event-title">' + esc(item.title) + '</div>',
-					'  <div class="attraction-event-count">人数 ' + esc(item.current + '/' + item.max) + '</div>',
-					'</button>',
-				].join('');
-			}).join('') + '</div>'
-			: '';
+		const itemsHtml = '<div class="attraction-list">' + upcoming.map((item) => {
+			const eventId = String(item.eventId || item.id || '');
+			state.attractionEvents[eventId] = item;
+			const dateText = String(item.dateText || formatEventStartSingleLine(item.startIso, item.isAllDay));
+			const titleText = String(item.titleText || item.title || '(無題)');
+			const remainingText = String(item.remainingText || item.peopleText || '');
+			return [
+				'<div class="attraction-item">',
+				'  <button type="button" class="attraction-event-link attraction-inline-click" data-attraction-event-id="' + esc(eventId) + '">' + esc(dateText) + '</button>',
+				'  <span class="attraction-inline-sep"> </span>',
+				'  <button type="button" class="attraction-event-link attraction-inline-click attraction-event-title" data-attraction-event-id="' + esc(eventId) + '">' + esc(titleText) + '</button>',
+				'  <span class="attraction-inline-sep"> </span>',
+				'  <span class="attraction-event-count">' + esc(remainingText) + '</span>',
+				'</div>',
+			].join('');
+		}).join('') + '</div>';
 
-		body.innerHTML = [
-			itemsHtml,
-			'<div class="attraction-total">今月の合計人数: ' + esc(monthTotal.current + '/' + monthTotal.max) + '</div>',
-		].join('');
+		body.innerHTML = itemsHtml;
 		body.querySelectorAll('[data-attraction-event-id]').forEach((btn) => {
 			btn.addEventListener('click', () => {
 				const eventId = btn.getAttribute('data-attraction-event-id');
@@ -377,83 +381,6 @@
 			});
 		});
 		section.style.display = '';
-	}
-
-	function collectUpcomingCapacityEvents_() {
-		const tomorrow = new Date();
-		tomorrow.setHours(0, 0, 0, 0);
-		tomorrow.setDate(tomorrow.getDate() + 1);
-
-		const out = [];
-		const seen = new Set();
-		state.attractionEvents = {};
-		Object.keys(state.monthCache).forEach((key) => {
-			const payload = state.monthCache[key] || {};
-			const eventsByDate = payload.eventsByDate || {};
-			Object.keys(eventsByDate).forEach((dateKey) => {
-				const events = eventsByDate[dateKey] || [];
-				events.forEach((ev) => {
-					const cap = parseCapacityTag_(ev.description || '');
-					if (!cap) return;
-
-					const start = new Date(ev.startIso || '');
-					if (Number.isNaN(start.getTime()) || start < tomorrow) return;
-
-					const eventId = buildAttractionEventId_(ev);
-					if (seen.has(eventId)) return;
-					seen.add(eventId);
-
-					out.push({
-						eventId,
-						title: String(ev.title || '(無題)'),
-						current: cap.current,
-						max: cap.max,
-						startTs: start.getTime(),
-						event: ev,
-					});
-					state.attractionEvents[eventId] = ev;
-				});
-			});
-		});
-
-		out.sort((a, b) => a.startTs - b.startTs);
-		return out.slice(0, 10);
-	}
-
-	function buildAttractionEventId_(ev) {
-		return String(ev.calendarId || '') + '|' + String(ev.id || '') + '|' + String(ev.startIso || '');
-	}
-
-	function getCurrentMonthCapacityTotals_() {
-		const now = new Date();
-		const key = getMonthKey(now.getFullYear(), now.getMonth() + 1);
-		const payload = state.monthCache[key] || {};
-		const eventsByDate = payload.eventsByDate || {};
-		let current = 0;
-		let max = 0;
-		let taggedCount = 0;
-
-		Object.keys(eventsByDate).forEach((dateKey) => {
-			const events = eventsByDate[dateKey] || [];
-			events.forEach((ev) => {
-				const cap = parseCapacityTag_(ev.description || '');
-				if (!cap) return;
-				taggedCount += 1;
-				current += cap.current;
-				max += cap.max;
-			});
-		});
-
-		return { current, max, taggedCount };
-	}
-
-	function parseCapacityTag_(description) {
-		const m = String(description || '').match(/\[\[\s*(\d+)\s*\/\s*(\d+)\s*\]\]/);
-		if (!m) return null;
-		return {
-			current: Number(m[1] || 0),
-			max: Number(m[2] || 0),
-		};
 	}
 
 	function renderCalendar() {
@@ -585,6 +512,19 @@
 		const from = String(s.getHours()).padStart(2, '0') + ':' + String(s.getMinutes()).padStart(2, '0');
 		const to = String(e.getHours()).padStart(2, '0') + ':' + String(e.getMinutes()).padStart(2, '0');
 		return date + ' ' + from + ' 〜 ' + to;
+	}
+
+	function formatEventStartSingleLine(startIso, allDay) {
+		const s = new Date(startIso);
+		if (Number.isNaN(s.getTime())) {
+			return '';
+		}
+		const date = s.getFullYear() + '/' + String(s.getMonth() + 1).padStart(2, '0') + '/' + String(s.getDate()).padStart(2, '0');
+		if (allDay) {
+			return date + ' 終日';
+		}
+		const from = String(s.getHours()).padStart(2, '0') + ':' + String(s.getMinutes()).padStart(2, '0');
+		return date + ' ' + from;
 	}
 
 	function toDateKey(y, m, d) {
