@@ -14,6 +14,11 @@ RUN mkdir -p /var/data/private/data /var/data/private/cache /var/data/uploads \
 	&& chown -R www-data:www-data /var/www/html /var/data \
 	&& chmod -R u+rwX,g+rwX /var/www/html /var/data
 
-# Avoid AH00534 (More than one MPM loaded) by pinning Apache to prefork.
-RUN a2dismod mpm_event mpm_worker || true \
-	&& a2enmod mpm_prefork rewrite
+# Avoid AH00534 by forcing only one Apache MPM module to remain enabled.
+RUN set -eux; \
+	a2dismod mpm_event mpm_worker || true; \
+	rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf; \
+	rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf; \
+	a2enmod mpm_prefork rewrite; \
+	MPM_COUNT="$(apache2ctl -M 2>/dev/null | grep -E 'mpm_(event|worker|prefork)_module' | wc -l)"; \
+	[ "$MPM_COUNT" -eq 1 ]
