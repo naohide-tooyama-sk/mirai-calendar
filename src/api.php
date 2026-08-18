@@ -41,9 +41,59 @@ try {
 					'config' => $cfg,
 					'calendars' => get_calendars(true),
 					'images' => $images,
-					'recentEvents' => get_recent_events_config(),
+					'eventDetails' => get_event_details_config(),
 					'eventOptions' => get_cached_event_options(),
 				]);
+				break;
+			}
+
+		case 'get_manage_data': {
+				require_admin_or_json_error();
+				$page = trim((string)($_GET['page'] ?? ''));
+				$month = trim((string)($_GET['month'] ?? ''));
+				if ($page === 'calendars') {
+					json_response(['ok' => true, 'calendars' => get_calendars(true)]);
+				}
+				if ($page === 'images') {
+					json_response(['ok' => true, 'images' => get_images()]);
+				}
+				if ($page === 'templates') {
+					json_response(['ok' => true, 'templates' => get_event_templates(), 'images' => get_images()]);
+				}
+				if ($page === 'events') {
+					if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+						json_response(['ok' => false, 'message' => '年月を指定してください。'], 400);
+					}
+					json_response([
+						'ok' => true,
+						'eventDetails' => get_event_details_config($month),
+						'eventOptions' => get_cached_event_options(),
+						'templates' => get_event_templates(),
+						'images' => get_images(),
+					]);
+				}
+				json_response(['ok' => false, 'message' => 'ページが不正です。'], 400);
+				break;
+			}
+
+		case 'save_manage_data': {
+				require_admin_or_json_error();
+				$payload = get_request_json();
+				$page = trim((string)($payload['page'] ?? ''));
+				if ($page === 'calendars') {
+					save_calendars((array)($payload['calendars'] ?? []));
+				} elseif ($page === 'templates') {
+					save_event_templates((array)($payload['templates'] ?? []));
+				} elseif ($page === 'events') {
+					$month = trim((string)($payload['month'] ?? ''));
+					if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+						json_response(['ok' => false, 'message' => '年月を指定してください。'], 400);
+					}
+					save_event_details_config((array)($payload['eventDetails'] ?? []), $month);
+				} else {
+					json_response(['ok' => false, 'message' => '保存対象が不正です。'], 400);
+				}
+				json_response(['ok' => true, 'message' => '保存しました。']);
 				break;
 			}
 
@@ -51,14 +101,21 @@ try {
 				require_admin_or_json_error();
 				$payload = get_request_json();
 				$cfg = save_runtime_config([
-					'headerRotationSec' => $payload['headerRotationSec'] ?? 6,
 					'timezone' => $payload['timezone'] ?? 'Asia/Tokyo',
-					'headerImageIds' => (array)($payload['headerImageIds'] ?? []),
-					'footerImageIds' => (array)($payload['footerImageIds'] ?? []),
 				]);
 				save_calendars((array)($payload['calendars'] ?? []));
-				save_recent_events_config((array)($payload['recentEvents'] ?? []));
+				save_event_details_config((array)($payload['eventDetails'] ?? []));
 				json_response(['ok' => true, 'message' => '保存しました。', 'config' => $cfg]);
+				break;
+			}
+
+		case 'get_event_detail': {
+				$eventId = trim((string)($_GET['eventId'] ?? ''));
+				$event = find_event_by_id($eventId);
+				if (!$event) {
+					json_response(['ok' => false, 'message' => '予定が見つかりません。'], 404);
+				}
+				json_response(['ok' => true, 'event' => $event]);
 				break;
 			}
 

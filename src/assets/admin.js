@@ -3,10 +3,10 @@
 	const app = document.getElementById('app');
 
 	const state = {
-		config: null,
+		config: {},
 		calendars: [],
 		images: [],
-		recentEvents: [],
+		eventDetails: [],
 		eventOptions: [],
 	};
 
@@ -20,83 +20,41 @@
 	}
 
 	function fetchJson(url, options) {
-		return fetch(url, options || {}).then((res) => {
-			return res.json().catch(() => ({})).then((body) => {
-				if (!res.ok || !body || body.ok === false) {
-					throw new Error(body.message || 'APIエラー');
-				}
-				return body;
-			});
-		});
+		return fetch(url, options || {}).then((res) => res.json().catch(() => ({})).then((body) => {
+			if (!res.ok || !body || body.ok === false) throw new Error(body.message || 'APIエラー');
+			return body;
+		}));
 	}
 
 	function renderShell() {
 		app.innerHTML = [
-			'<div class="admin-grid">',
-			'  <section class="card">',
-			'    <h3>画像管理</h3>',
-			'    <div class="row">',
-			'      <label>画像ファイル</label>',
-			'      <input id="uploadImages" type="file" accept="image/*" multiple />',
-			'    </div>',
-			'    <button class="btn" id="uploadBtn">アップロード</button>',
-			'    <div style="margin-top:12px;" id="imageList"></div>',
-			'  </section>',
-			'  <section class="card">',
-			'    <h3>ヘッダー画像（有効は最大3件）</h3>',
-			'    <div id="headerEnabledRows"></div>',
-			'    <div class="row">',
-			'      <label>ヘッダー切替秒数</label>',
-			'      <input id="headerRotationSec" type="number" min="2" max="60" />',
-			'    </div>',
-			'  </section>',
-			'  <section class="card">',
-			'    <h3>フッター画像（表示は1件）</h3>',
-			'    <div id="footerEnabledRows"></div>',
-			'  </section>',
-			'  <section class="card">',
-			'    <h3>カレンダー設定（最大5件）</h3>',
-			'    <div id="calendarRows"></div>',
-			'  </section>',
-			'  <section class="card">',
-			'    <h3>直近のイベント設定（最大10件）</h3>',
-			'    <div id="recentEventRows"></div>',
-			'  </section>',
-			'  <div class="row-2">',
-			'    <button class="btn" id="saveBtn">保存</button>',
-			'    <button class="btn" id="toCalendarBtn">カレンダー画面へ</button>',
-			'  </div>',
-			'  <div class="row-2">',
-			'    <a class="btn center" href="' + esc(boot.logoutUrl || 'manage.php?logout=1') + '">ログアウト</a>',
-			'    <div></div>',
-			'  </div>',
+			'<div class="admin-v2">',
+			'  <header class="admin-header-v2">',
+			'    <div><h1>管理ページ</h1><p>イベント情報を編集します。</p></div>',
+			'    <div class="admin-actions-v2"><button class="btn" id="toCalendarBtn">カレンダーへ</button><a class="btn" href="' + esc(boot.logoutUrl || 'manage.php?logout=1') + '">ログアウト</a></div>',
+			'  </header>',
+			'  <section class="card"><h2>カレンダー設定</h2><div id="calendarRows"></div></section>',
+			'  <section class="card"><h2>画像管理</h2><div class="row"><label>キャッチ画像ファイル</label><input id="uploadImages" type="file" accept="image/*" multiple></div><button class="btn" id="uploadBtn">アップロード</button><div id="imageList" class="admin-image-list"></div></section>',
+			'  <section class="card"><h2>全予定の詳細情報</h2><div id="eventDetailRows"></div></section>',
+			'  <button class="btn primary-admin-save" id="saveBtn">保存</button>',
 			'  <div class="msg" id="status"></div>',
 			'</div>',
-			'<div class="blocking-overlay" id="blockingOverlay">',
-			'  <div class="loading-panel">',
-			'    <div class="loading-spinner"></div>',
-			'    <div id="loadingText">設定読み込み中</div>',
-			'  </div>',
-			'</div>',
+			'<div class="blocking-overlay" id="blockingOverlay"><div class="loading-panel"><div class="loading-spinner"></div><div id="loadingText">読み込み中</div></div></div>',
 		].join('');
 
 		document.getElementById('saveBtn').addEventListener('click', save);
-		document.getElementById('toCalendarBtn').addEventListener('click', () => {
-			window.location.assign(boot.calendarUrl || 'index.php');
-		});
+		document.getElementById('toCalendarBtn').addEventListener('click', () => window.location.assign(boot.calendarUrl || 'index.php'));
 		document.getElementById('uploadBtn').addEventListener('click', uploadImages);
 	}
 
 	function loadAdminData() {
 		showBlockingOverlay('設定読み込み中');
-		setStatus('設定を読み込み中...');
-
 		fetchJson(apiUrl('get_admin_data'))
 			.then((res) => {
 				state.config = res.config || {};
 				state.calendars = (res.calendars || []).slice(0, 5);
 				state.images = Array.isArray(res.images) ? res.images : [];
-				state.recentEvents = Array.isArray(res.recentEvents) ? res.recentEvents.slice(0, 10) : [];
+				state.eventDetails = Array.isArray(res.eventDetails) ? res.eventDetails : [];
 				state.eventOptions = Array.isArray(res.eventOptions) ? res.eventOptions : [];
 				fillForm();
 				hideBlockingOverlay();
@@ -109,37 +67,9 @@
 	}
 
 	function fillForm() {
-		document.getElementById('headerRotationSec').value = Number(state.config.headerRotationSec || 6);
-		renderEnabledRows('header', 3);
-		renderEnabledRows('footer', 1);
 		renderCalendarRows();
-		renderRecentEventRows();
 		renderImageList();
-	}
-
-	function renderEnabledRows(category, limit) {
-		const holder = document.getElementById(category === 'header' ? 'headerEnabledRows' : 'footerEnabledRows');
-		const selectedIds = category === 'header'
-			? (state.config.headerImageIds || [])
-			: (state.config.footerImageIds || []);
-		const candidates = state.images;
-
-		const rows = [];
-		for (let i = 0; i < limit; i++) {
-			const options = ['<option value="">未選択</option>'].concat(candidates.map((img) => {
-				const selected = selectedIds[i] === img.id ? ' selected' : '';
-				return '<option value="' + esc(img.id) + '"' + selected + '>' + esc(img.originalName || img.filename) + '</option>';
-			}));
-			const label = category === 'header' ? 'ヘッダー画像 ' : 'フッター画像 ';
-			rows.push(
-				'<div class="row">' +
-				'<label>' + label + (i + 1) + '</label>' +
-				'<select data-' + category + '-enabled="' + i + '">' + options.join('') + '</select>' +
-				'</div>'
-			);
-		}
-
-		holder.innerHTML = rows.join('');
+		renderEventDetailRows();
 	}
 
 	function renderCalendarRows() {
@@ -148,105 +78,13 @@
 		for (let i = 0; i < 5; i++) {
 			const data = state.calendars[i] || {};
 			rows.push(
-				'<div class="row-2">' +
-				'<div class="row"><label>カレンダーURL/ID ' +
-				(i + 1) +
-				'</label><input data-cal-input="' +
-				i +
-				'" value="' +
-				esc(data.calendarInput || data.calendarId || '') +
-				'" /></div>' +
-				'<div class="row"><label>有効</label><select data-cal-enabled="' +
-				i +
-				'"><option value="true"' +
-				(data.enabled === false ? '' : ' selected') +
-				'>有効</option><option value="false"' +
-				(data.enabled === false ? ' selected' : '') +
-				'>無効</option></select></div>' +
+				'<div class="admin-row-pair">' +
+				'<div class="row"><label>カレンダーURL/ID ' + (i + 1) + '</label><input data-cal-input="' + i + '" value="' + esc(data.calendarInput || data.calendarId || '') + '"></div>' +
+				'<div class="row"><label>有効</label><select data-cal-enabled="' + i + '"><option value="true"' + (data.enabled === false ? '' : ' selected') + '>有効</option><option value="false"' + (data.enabled === false ? ' selected' : '') + '>無効</option></select></div>' +
 				'</div>'
 			);
 		}
 		holder.innerHTML = rows.join('');
-	}
-
-	function renderRecentEventRows() {
-		const holder = document.getElementById('recentEventRows');
-		const optionMap = buildEventOptionMap();
-		const rows = [];
-		for (let i = 0; i < 10; i++) {
-			const data = state.recentEvents[i] || {};
-			const selectedId = String(data.eventId || '');
-			const options = ['<option value="">未選択</option>'].concat(state.eventOptions.map((item) => {
-				const eventId = String(item.eventId || '');
-				const selected = eventId === selectedId ? ' selected' : '';
-				return '<option value="' + esc(eventId) + '"' + selected + '>' + esc(item.label || eventId) + '</option>';
-			}));
-
-			if (selectedId && !state.eventOptions.some((item) => String(item.eventId || '') === selectedId)) {
-				options.push('<option value="' + esc(selectedId) + '" selected>' + esc('未取得のイベント (' + selectedId + ')') + '</option>');
-			}
-
-			rows.push(
-				'<div class="row">' +
-				'<label>対象イベント ' +
-				(i + 1) +
-				'</label><select data-recent-event-id="' +
-				i +
-				'">' +
-				options.join('') +
-				'</select></div>' +
-				'</div>' +
-				'<div class="row"><label>日時テキスト</label><input data-recent-date-text="' +
-				i +
-				'" value="' +
-				esc(data.dateText || ((optionMap[selectedId] && optionMap[selectedId].defaultDateText) || '')) +
-				'" placeholder="2026/07/22 19:00 など" /></div>' +
-				'<div class="row"><label>イベント名テキスト</label><input data-recent-title-text="' +
-				i +
-				'" value="' +
-				esc(data.titleText || ((optionMap[selectedId] && optionMap[selectedId].defaultTitleText) || '')) +
-				'" placeholder="イベント名を入力" /></div>' +
-				'<div class="row"><label>残り人数テキスト</label><input data-recent-remaining-text="' +
-				i +
-				'" value="' +
-				esc(data.remainingText || data.peopleText || '') +
-				'" placeholder="残り3名 など" /></div>' +
-				'</div>'
-			);
-		}
-		holder.innerHTML = rows.join('');
-
-		holder.querySelectorAll('[data-recent-event-id]').forEach((selectEl) => {
-			selectEl.addEventListener('change', () => {
-				const idx = Number(selectEl.getAttribute('data-recent-event-id'));
-				if (Number.isNaN(idx)) return;
-				applyRecentEventDefaults(idx, (selectEl.value || '').trim(), optionMap);
-			});
-		});
-	}
-
-	function buildEventOptionMap() {
-		const map = {};
-		state.eventOptions.forEach((item) => {
-			const eventId = String(item.eventId || '');
-			if (!eventId) return;
-			map[eventId] = item;
-		});
-		return map;
-	}
-
-	function applyRecentEventDefaults(index, eventId, optionMap) {
-		const option = optionMap[eventId];
-		if (!option) return;
-
-		const dateInput = document.querySelector('[data-recent-date-text="' + index + '"]');
-		const titleInput = document.querySelector('[data-recent-title-text="' + index + '"]');
-		if (dateInput) {
-			dateInput.value = option.defaultDateText || '';
-		}
-		if (titleInput) {
-			titleInput.value = option.defaultTitleText || '';
-		}
 	}
 
 	function renderImageList() {
@@ -255,37 +93,61 @@
 			holder.innerHTML = '<div class="msg">画像はまだありません。</div>';
 			return;
 		}
-
-		holder.innerHTML = state.images.map((img) => {
-			return [
-				'<div class="row-2" style="align-items:center; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">',
-				'<div>',
-				'<div style="font-size:13px;">' + esc(img.originalName || img.filename) + '</div>',
-				'<img src="' + esc(img.url) + '" alt="image" style="margin-top:6px; max-width:100%; max-height:80px; object-fit:contain;" />',
-				'</div>',
-				'<div style="text-align:right;">',
-				'<button class="btn" data-delete-image="' + esc(img.id) + '">削除する</button>',
-				'</div>',
-				'</div>'
-			].join('');
-		}).join('');
-
+		holder.innerHTML = state.images.map((img) => [
+			'<div class="admin-image-row">',
+			'  <img src="' + esc(img.url) + '" alt="">',
+			'  <span>' + esc(img.originalName || img.filename) + '</span>',
+			'  <button class="btn" data-delete-image="' + esc(img.id) + '">削除</button>',
+			'</div>',
+		].join('')).join('');
 		holder.querySelectorAll('[data-delete-image]').forEach((btn) => {
-			btn.addEventListener('click', () => {
-				const id = btn.getAttribute('data-delete-image');
-				removeImage(id);
-			});
+			btn.addEventListener('click', () => removeImage(btn.getAttribute('data-delete-image')));
 		});
 	}
 
-	function collectEnabledIds(category, limit) {
-		const out = [];
-		for (let i = 0; i < limit; i++) {
-			const el = document.querySelector('[data-' + category + '-enabled="' + i + '"]');
-			const v = (el && el.value.trim()) || '';
-			if (v) out.push(v);
-		}
-		return Array.from(new Set(out)).slice(0, limit);
+	function renderEventDetailRows() {
+		const holder = document.getElementById('eventDetailRows');
+		const detailMap = buildDetailMap();
+		holder.innerHTML = state.eventOptions.map((option, i) => {
+			const eventId = String(option.eventId || '');
+			const d = detailMap[eventId] || {};
+			return [
+				'<details class="event-detail-admin" data-detail-index="' + i + '">',
+				'  <summary><span>' + esc(option.label || eventId) + '</span><strong>' + esc(d.categoryText || '') + '</strong></summary>',
+				'  <input type="hidden" data-detail-event-id="' + i + '" value="' + esc(eventId) + '">',
+				'  <div class="admin-row-pair"><div class="row"><label>カテゴリ</label><input data-detail-category-text="' + i + '" value="' + esc(d.categoryText || '') + '" placeholder="セミナー / 交流会 など"></div>',
+				'  <div class="row"><label>キャッチ画像</label>' + imageSelectHtml('data-detail-catch-image-id="' + i + '"', d.catchImageId || '') + '</div></div>',
+				'  <div class="row"><label>詳細ページ見出し</label><input data-detail-hero-title="' + i + '" value="' + esc(d.heroTitle || '') + '"></div>',
+				'  <div class="row"><label>サブコピー</label><input data-detail-hero-subtitle="' + i + '" value="' + esc(d.heroSubtitle || '') + '"></div>',
+				'  <div class="admin-row-pair"><div class="row"><label>残り人数</label><input data-detail-remaining-text="' + i + '" value="' + esc(d.remainingText || '') + '"></div>',
+				'  <div class="row"><label>定員</label><input data-detail-capacity-text="' + i + '" value="' + esc(d.capacityText || '') + '"></div></div>',
+				'  <div class="admin-row-pair"><div class="row"><label>参加費</label><input data-detail-fee-text="' + i + '" value="' + esc(d.feeText || '') + '"></div>',
+				'  <div class="row"><label>会場</label><input data-detail-venue-text="' + i + '" value="' + esc(d.venueText || '') + '"></div></div>',
+				'  <div class="admin-row-pair"><div class="row"><label>主催</label><input data-detail-organizer-text="' + i + '" value="' + esc(d.organizerText || '') + '"></div>',
+				'  <div class="row"><label>申込URL</label><input data-detail-apply-url="' + i + '" value="' + esc(d.applyUrl || '') + '" placeholder="https://..."></div></div>',
+				'  <div class="row"><label>説明文</label><textarea data-detail-description-text="' + i + '" rows="5">' + esc(d.descriptionText || '') + '</textarea></div>',
+				'  <div class="row"><label>こんな方におすすめ（1行1項目）</label><textarea data-detail-recommendations-text="' + i + '" rows="4">' + esc(d.recommendationsText || '') + '</textarea></div>',
+				'  <div class="row"><label>当日の流れ（1行1項目）</label><textarea data-detail-flow-text="' + i + '" rows="4">' + esc(d.flowText || '') + '</textarea></div>',
+				'  <div class="row"><label>注意事項（1行1項目）</label><textarea data-detail-notes-text="' + i + '" rows="3">' + esc(d.notesText || '') + '</textarea></div>',
+				'</details>',
+			].join('');
+		}).join('');
+	}
+
+	function imageSelectHtml(attr, selectedId) {
+		const options = ['<option value="">未選択</option>'].concat(state.images.map((img) => {
+			return '<option value="' + esc(img.id) + '"' + (String(img.id) === String(selectedId) ? ' selected' : '') + '>' + esc(img.originalName || img.filename) + '</option>';
+		}));
+		return '<select ' + attr + '>' + options.join('') + '</select>';
+	}
+
+	function buildDetailMap() {
+		const map = {};
+		state.eventDetails.forEach((item) => {
+			const eventId = String(item.eventId || '');
+			if (eventId) map[eventId] = item;
+		});
+		return map;
 	}
 
 	function collectCalendars() {
@@ -293,57 +155,59 @@
 		for (let i = 0; i < 5; i++) {
 			const input = document.querySelector('[data-cal-input="' + i + '"]');
 			const enabled = document.querySelector('[data-cal-enabled="' + i + '"]');
-			out.push({
-				calendarInput: (input && input.value.trim()) || '',
-				enabled: !enabled || enabled.value === 'true',
-			});
+			out.push({ calendarInput: (input && input.value.trim()) || '', enabled: !enabled || enabled.value === 'true' });
 		}
 		return out;
 	}
 
-	function collectRecentEvents() {
+	function collectEventDetails() {
 		const out = [];
-		for (let i = 0; i < 10; i++) {
-			const eventSelect = document.querySelector('[data-recent-event-id="' + i + '"]');
-			const dateInput = document.querySelector('[data-recent-date-text="' + i + '"]');
-			const titleInput = document.querySelector('[data-recent-title-text="' + i + '"]');
-			const remainingInput = document.querySelector('[data-recent-remaining-text="' + i + '"]');
-			const eventId = (eventSelect && eventSelect.value.trim()) || '';
-			if (!eventId) {
-				continue;
-			}
-			out.push({
+		for (let i = 0; i < state.eventOptions.length; i++) {
+			const eventId = valueOf('[data-detail-event-id="' + i + '"]');
+			if (!eventId) continue;
+			const row = {
 				eventId,
-				dateText: (dateInput && dateInput.value) || '',
-				titleText: (titleInput && titleInput.value) || '',
-				remainingText: (remainingInput && remainingInput.value) || '',
-			});
+				catchImageId: valueOf('[data-detail-catch-image-id="' + i + '"]'),
+				categoryText: valueOf('[data-detail-category-text="' + i + '"]'),
+				heroTitle: valueOf('[data-detail-hero-title="' + i + '"]'),
+				heroSubtitle: valueOf('[data-detail-hero-subtitle="' + i + '"]'),
+				descriptionText: valueOf('[data-detail-description-text="' + i + '"]'),
+				remainingText: valueOf('[data-detail-remaining-text="' + i + '"]'),
+				capacityText: valueOf('[data-detail-capacity-text="' + i + '"]'),
+				feeText: valueOf('[data-detail-fee-text="' + i + '"]'),
+				venueText: valueOf('[data-detail-venue-text="' + i + '"]'),
+				organizerText: valueOf('[data-detail-organizer-text="' + i + '"]'),
+				applyUrl: valueOf('[data-detail-apply-url="' + i + '"]'),
+				recommendationsText: valueOf('[data-detail-recommendations-text="' + i + '"]'),
+				flowText: valueOf('[data-detail-flow-text="' + i + '"]'),
+				notesText: valueOf('[data-detail-notes-text="' + i + '"]'),
+			};
+			const hasManualValue = Object.keys(row).some((key) => key !== 'eventId' && row[key]);
+			if (hasManualValue) out.push(row);
 		}
 		return out;
+	}
+
+	function valueOf(selector) {
+		const el = document.querySelector(selector);
+		return (el && el.value) ? el.value.trim() : '';
 	}
 
 	function save() {
 		const payload = {
-			headerRotationSec: Number(document.getElementById('headerRotationSec').value || 6),
 			timezone: 'Asia/Tokyo',
-			headerImageIds: collectEnabledIds('header', 3),
-			footerImageIds: collectEnabledIds('footer', 1),
 			calendars: collectCalendars(),
-			recentEvents: collectRecentEvents(),
+			eventDetails: collectEventDetails(),
 		};
-
 		setStatus('保存中...');
 		fetchJson(apiUrl('save_admin_data'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload),
-		})
-			.then((res) => {
-				setStatus((res && res.message) || '保存しました。', false, true);
-			})
-			.catch((err) => {
-				setStatus(err.message || String(err), true);
-			});
+		}).then((res) => {
+			state.eventDetails = payload.eventDetails;
+			setStatus((res && res.message) || '保存しました。', false, true);
+		}).catch((err) => setStatus(err.message || String(err), true));
 	}
 
 	function uploadImages() {
@@ -352,40 +216,29 @@
 			setStatus('画像を選択してください。', true);
 			return;
 		}
-
 		const fd = new FormData();
-		Array.from(files).forEach((file) => {
-			fd.append('images[]', file);
-		});
-
+		Array.from(files).forEach((file) => fd.append('images[]', file));
 		setStatus('アップロード中...');
 		fetchJson(apiUrl('upload_image'), { method: 'POST', body: fd })
 			.then(() => {
-				setStatus('アップロードしました。', false, true);
 				document.getElementById('uploadImages').value = '';
+				setStatus('アップロードしました。', false, true);
 				loadAdminData();
 			})
-			.catch((err) => {
-				setStatus(err.message || String(err), true);
-			});
+			.catch((err) => setStatus(err.message || String(err), true));
 	}
 
 	function removeImage(id) {
 		if (!id) return;
-
 		setStatus('削除中...');
 		fetchJson(apiUrl('delete_image'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ id }),
-		})
-			.then(() => {
-				setStatus('削除しました。', false, true);
-				loadAdminData();
-			})
-			.catch((err) => {
-				setStatus(err.message || String(err), true);
-			});
+		}).then(() => {
+			setStatus('削除しました。', false, true);
+			loadAdminData();
+		}).catch((err) => setStatus(err.message || String(err), true));
 	}
 
 	function showBlockingOverlay(message) {
@@ -398,8 +251,7 @@
 
 	function hideBlockingOverlay() {
 		const overlay = document.getElementById('blockingOverlay');
-		if (!overlay) return;
-		overlay.classList.remove('is-visible');
+		if (overlay) overlay.classList.remove('is-visible');
 	}
 
 	function setStatus(msg, isError, isOk) {
@@ -410,11 +262,6 @@
 	}
 
 	function esc(s) {
-		return String(s || '')
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#39;');
+		return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 	}
 })();

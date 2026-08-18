@@ -62,11 +62,18 @@ $bootstrap = [
 			</div>
 		</div>
 	<?php else: ?>
-		<div id="app" class="admin-shell"></div>
-		<script>
-			window.__BOOTSTRAP__ = <?= json_encode($bootstrap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-		</script>
-		<script src="<?= htmlspecialchars(app_url('assets/admin.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+		<div class="admin-shell">
+			<div class="admin-grid">
+				<section class="card admin-top-menu">
+					<h1>設定</h1>
+					<a class="btn" href="<?= htmlspecialchars(app_url('manage_calendars.php'), ENT_QUOTES, 'UTF-8') ?>">カレンダー設定</a>
+					<a class="btn" href="<?= htmlspecialchars(app_url('manage_images.php'), ENT_QUOTES, 'UTF-8') ?>">画像管理</a>
+					<a class="btn" href="<?= htmlspecialchars(app_url('manage_templates.php'), ENT_QUOTES, 'UTF-8') ?>">イベントテンプレート設定</a>
+					<a class="btn" href="<?= htmlspecialchars(app_url('manage_events.php'), ENT_QUOTES, 'UTF-8') ?>">イベント詳細設定</a>
+					<div class="admin-actions-v2"><a class="btn" href="<?= htmlspecialchars($bootstrap['calendarUrl'], ENT_QUOTES, 'UTF-8') ?>">カレンダーへ</a><a class="btn" href="<?= htmlspecialchars($bootstrap['logoutUrl'], ENT_QUOTES, 'UTF-8') ?>">ログアウト</a></div>
+				</section>
+			</div>
+		</div>
 	<?php endif; ?>
 </body>
 
