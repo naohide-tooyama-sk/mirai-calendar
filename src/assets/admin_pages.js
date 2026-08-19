@@ -67,7 +67,7 @@
 		form.append('csv', input.files[0]);
 		request(apiUrl('upload_event_csv'), { method: 'POST', body: form }).then((data) => { setStatus(data.message, false, true); renderEventCsv(); }).catch((error) => setStatus(error.message, true));
 	}
-	function save(payload) { request(apiUrl('save_manage_data'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'events', ...payload }) }).then((data) => { setStatus(data.message, false, true); if (boot.page !== 'images') load(); }).catch((error) => setStatus(error.message, true)); }
+	function save(payload) { request(apiUrl('save_manage_data'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: boot.page, ...payload }) }).then((data) => { setStatus(data.message, false, true); if (boot.page !== 'images') load(); }).catch((error) => setStatus(error.message, true)); }
 	function uploadImages() { const files = document.getElementById('uploadImages').files; if (!files.length) return setStatus('画像を選択してください。', true); const form = new FormData(); Array.from(files).forEach((file) => form.append('images[]', file)); request(apiUrl('upload_image'), { method: 'POST', body: form }).then(() => { setStatus('アップロードしました。', false, true); load(); }).catch((error) => setStatus(error.message, true)); }
 	function deleteImage(id) { request(apiUrl('delete_image'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(() => { setStatus('削除しました。', false, true); load(); }).catch((error) => setStatus(error.message, true)); }
 	function content(html) { document.getElementById('content').innerHTML = html; }
