@@ -68,8 +68,7 @@ $bootstrap = [
 					<h1>設定</h1>
 					<a class="btn" href="<?= htmlspecialchars(app_url('manage_calendars.php'), ENT_QUOTES, 'UTF-8') ?>">カレンダー設定</a>
 					<a class="btn" href="<?= htmlspecialchars(app_url('manage_images.php'), ENT_QUOTES, 'UTF-8') ?>">画像管理</a>
-					<a class="btn" href="<?= htmlspecialchars(app_url('manage_templates.php'), ENT_QUOTES, 'UTF-8') ?>">イベントテンプレート設定</a>
-					<a class="btn" href="<?= htmlspecialchars(app_url('manage_events.php'), ENT_QUOTES, 'UTF-8') ?>">イベント詳細設定</a>
+					<a class="btn" href="<?= htmlspecialchars(app_url('manage_events.php'), ENT_QUOTES, 'UTF-8') ?>">イベント管理</a>
 					<div class="admin-actions-v2"><a class="btn" href="<?= htmlspecialchars($bootstrap['calendarUrl'], ENT_QUOTES, 'UTF-8') ?>">カレンダーへ</a><a class="btn" href="<?= htmlspecialchars($bootstrap['logoutUrl'], ENT_QUOTES, 'UTF-8') ?>">ログアウト</a></div>
 				</section>
 			</div>

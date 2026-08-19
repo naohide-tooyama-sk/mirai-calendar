@@ -1077,6 +1077,39 @@ body.detail-exit-right .detail-shell {
 	color: #172033;
 }
 
+.csv-manager {
+	max-width: 900px;
+}
+
+.csv-manager h2 {
+	margin-bottom: 8px;
+}
+
+.csv-manager p {
+	margin: 0 0 18px;
+	color: #64748b;
+	line-height: 1.6;
+}
+
+.csv-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.csv-upload-label {
+	cursor: pointer;
+}
+
+#eventCsv {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	top: -10000px;
+	opacity: 0;
+}
+
 .row {
 	display: grid;
 	gap: 6px;
@@ -1366,6 +1399,7 @@ textarea {
 		grid-template-columns: 1fr;
 		display: grid;
 	}
+
 
 	.admin-actions-v2 {
 		width: 100%;

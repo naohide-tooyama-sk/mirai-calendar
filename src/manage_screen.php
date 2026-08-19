@@ -14,8 +14,7 @@ $page = $managePage ?? '';
 $titles = [
 	'calendars' => 'カレンダー設定',
 	'images' => '画像管理',
-	'templates' => 'イベントテンプレート設定',
-	'events' => 'イベント詳細設定',
+	'events' => 'イベント管理',
 ];
 if (!isset($titles[$page])) {
 	http_response_code(404);

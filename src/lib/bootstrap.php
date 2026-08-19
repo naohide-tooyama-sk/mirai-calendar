@@ -78,7 +78,6 @@ function ensure_storage_files(): void {
 		data_dir() . '/images.txt' => [],
 		data_dir() . '/holidays.txt' => [],
 		data_dir() . '/event_details.txt' => [],
-		data_dir() . '/event_templates.txt' => [],
 	];
 
 	foreach ($defaults as $path => $payload) {
@@ -159,7 +158,6 @@ function save_runtime_config(array $cfg): array {
 function default_event_detail(): array {
 	return [
 		'eventId' => '',
-		'templateName' => '',
 		'eventType' => '',
 		'imageFilename' => '',
 		'detailSubtitle' => '',
@@ -185,7 +183,7 @@ function get_event_details_config(?string $monthKey = null): array {
 	ensure_storage_files();
 	$out = [];
 	$files = $monthKey === null
-		? array_merge([data_dir() . '/event_details.txt'], glob(data_dir() . '/event_details-????-??.txt') ?: [])
+		? array_merge(glob(data_dir() . '/event_details-????-??.txt') ?: [], [data_dir() . '/event_details.txt'])
 		: [event_details_file($monthKey)];
 	foreach ($files as $file) {
 		$rows = read_json_txt($file, []);
@@ -242,64 +240,6 @@ function normalize_event_detail_config(array $row): array {
 	}
 	$detail['applyUrl'] = sanitize_url((string)$detail['applyUrl']);
 	return $detail;
-}
-
-function default_event_template(): array {
-	return [
-		'name' => '',
-		'eventType' => '',
-		'imageFilename' => '',
-		'detailSubtitle' => '',
-		'timeText' => '',
-		'locationText' => '',
-		'capacityText' => '',
-		'applyUrl' => '',
-		'shortTitle' => '',
-		'shortDescription' => '',
-	];
-}
-
-function normalize_event_template(array $row): array {
-	$template = default_event_template();
-	foreach ($template as $key => $_) {
-		$template[$key] = trim((string)($row[$key] ?? ''));
-	}
-	$template['applyUrl'] = sanitize_url($template['applyUrl']);
-	return $template;
-}
-
-function get_event_templates(): array {
-	ensure_storage_files();
-	$rows = read_json_txt(data_dir() . '/event_templates.txt', []);
-	if (!is_array($rows)) {
-		return [];
-	}
-	$out = [];
-	foreach ($rows as $row) {
-		if (!is_array($row)) {
-			continue;
-		}
-		$template = normalize_event_template($row);
-		if ($template['name'] !== '') {
-			$out[] = $template;
-		}
-	}
-	return $out;
-}
-
-function save_event_templates(array $rows): array {
-	$out = [];
-	foreach ($rows as $row) {
-		if (!is_array($row)) {
-			continue;
-		}
-		$template = normalize_event_template($row);
-		if ($template['name'] !== '') {
-			$out[] = $template;
-		}
-	}
-	write_json_txt(data_dir() . '/event_templates.txt', $out);
-	return $out;
 }
 
 function get_event_detail_map(): array {
