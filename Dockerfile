@@ -1,5 +1,7 @@
 FROM php:8.3-cli-alpine
 
+RUN apk add --no-cache su-exec
+
 ENV TZ=Asia/Tokyo
 ENV APP_STORAGE_ROOT=/var/data
 
@@ -13,9 +15,11 @@ RUN mkdir -p /var/data/private/data /var/data/private/cache /var/data/uploads \
 	&& chown -R www-data:www-data /app /var/data \
 	&& chmod -R u+rwX,g+rwX /app /var/data
 
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 8080
 
-USER www-data
-
 # Railway sets PORT at runtime. 8080 is a safe local fallback.
-CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} -t /app"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD []
