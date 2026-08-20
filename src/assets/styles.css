@@ -424,11 +424,8 @@ body.page-exit-left .v2-main {
 	font-size: 10px;
 	font-weight: 700;
 	line-height: 1.35;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
+	display: block;
+	word-break: break-word;
 }
 
 .recommend-empty-v2 {
