@@ -764,6 +764,74 @@ function get_cached_month_data(int $year, int $month): array {
 	];
 }
 
+function get_manage_month_events(int $year, int $month): array {
+	$monthKey = get_month_key($year, $month);
+	$details = get_event_detail_map();
+	$payload = read_json_txt(month_cache_file($year, $month), []);
+	$eventsByDate = is_array($payload['eventsByDate'] ?? null) ? $payload['eventsByDate'] : [];
+	$events = [];
+	foreach ($eventsByDate as $list) {
+		if (!is_array($list)) {
+			continue;
+		}
+		foreach ($list as $event) {
+			$event = normalize_cached_event_record($event);
+			if ($event === null || !str_starts_with((string)$event['startIso'], $monthKey)) {
+				continue;
+			}
+			$events[] = array_merge($details[(string)$event['id']] ?? default_event_detail(), [
+				'eventId' => (string)$event['id'],
+				'dateText' => format_cached_event_datetime_text($event),
+				'title' => (string)$event['title'],
+			]);
+		}
+	}
+	usort($events, static fn(array $a, array $b): int => strcmp((string)$a['dateText'], (string)$b['dateText']));
+	return $events;
+}
+
+function get_manage_event_copy_sources(int $year, int $month): array {
+	$selectedMonth = new DateTime(get_month_key($year, $month) . '-01');
+	$sources = [];
+	for ($offset = 0; $offset <= 2; $offset++) {
+		$sourceMonth = (clone $selectedMonth)->modify('-' . $offset . ' months');
+		foreach (get_manage_month_events((int)$sourceMonth->format('Y'), (int)$sourceMonth->format('n')) as $event) {
+			$sources[] = $event;
+		}
+	}
+	usort($sources, static fn(array $a, array $b): int => strcmp((string)$b['dateText'], (string)$a['dateText']));
+	return $sources;
+}
+
+function save_manage_month_event_details(int $year, int $month, array $rows): array {
+	$currentEventIds = [];
+	foreach (get_manage_month_events($year, $month) as $event) {
+		$currentEventIds[(string)$event['eventId']] = true;
+	}
+
+	$replacement = [];
+	foreach ($rows as $row) {
+		if (!is_array($row)) {
+			continue;
+		}
+		$detail = normalize_event_detail_config($row);
+		if (isset($currentEventIds[$detail['eventId']])) {
+			$replacement[$detail['eventId']] = $detail;
+		}
+	}
+
+	$merged = [];
+	foreach (get_event_details_config() as $detail) {
+		if (!isset($currentEventIds[$detail['eventId']])) {
+			$merged[] = $detail;
+		}
+	}
+	foreach ($replacement as $detail) {
+		$merged[] = $detail;
+	}
+	return save_event_details_config($merged);
+}
+
 function save_cached_month_data(int $year, int $month, array $payload): void {
 	write_json_txt(month_cache_file($year, $month), [
 		'eventsByDate' => is_array($payload['eventsByDate'] ?? null) ? $payload['eventsByDate'] : [],

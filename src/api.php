@@ -63,8 +63,23 @@ function read_event_csv_rows(array $file): array {
 	if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
 		throw new InvalidArgumentException('CSVファイルを読み込めません。');
 	}
-	$handle = fopen((string)$file['tmp_name'], 'rb');
+	$path = (string)$file['tmp_name'];
+	$raw = file_get_contents($path);
+	if ($raw === false || $raw === '') {
+		throw new InvalidArgumentException('CSVファイルを読み込めません。');
+	}
+	if (strncmp($raw, "\xFF\xFE", 2) === 0 || strncmp($raw, "\xFE\xFF", 2) === 0) {
+		$raw = mb_convert_encoding($raw, 'UTF-8', 'UTF-16');
+	} elseif (!mb_check_encoding($raw, 'UTF-8')) {
+		$raw = mb_convert_encoding($raw, 'UTF-8', 'SJIS-win');
+	}
+	$tmpPath = tempnam(sys_get_temp_dir(), 'event-csv-');
+	if ($tmpPath === false || file_put_contents($tmpPath, $raw) === false) {
+		throw new InvalidArgumentException('CSVファイルを読み込めません。');
+	}
+	$handle = fopen($tmpPath, 'rb');
 	if ($handle === false) {
+		@unlink($tmpPath);
 		throw new InvalidArgumentException('CSVファイルを開けません。');
 	}
 	try {
@@ -81,6 +96,9 @@ function read_event_csv_rows(array $file): array {
 				$headerMap[$index] = $field;
 			}
 		}
+		if (!in_array('eventId', $headerMap, true)) {
+			throw new InvalidArgumentException('CSVにイベントID列がありません。アプリからダウンロードしたCSVを使用してください。');
+		}
 		$rows = [];
 		while (($values = fgetcsv($handle)) !== false) {
 			if ($values === [null] || count(array_filter($values, static fn($value): bool => trim((string)$value) !== '')) === 0) {
@@ -95,6 +113,7 @@ function read_event_csv_rows(array $file): array {
 		return $rows;
 	} finally {
 		fclose($handle);
+		@unlink($tmpPath);
 	}
 }
 
@@ -160,6 +179,24 @@ try {
 				break;
 			}
 
+		case 'get_manage_events': {
+				require_admin_or_json_error();
+				$year = (int)($_GET['year'] ?? 0);
+				$month = (int)($_GET['month'] ?? 0);
+				if ($year < 2026 || $year > 2036 || $month < 1 || $month > 12) {
+					json_response(['ok' => false, 'message' => '年月パラメータが不正です。'], 400);
+				}
+				json_response([
+					'ok' => true,
+					'year' => $year,
+					'month' => $month,
+					'events' => get_manage_month_events($year, $month),
+					'copySources' => get_manage_event_copy_sources($year, $month),
+					'images' => get_images(),
+				]);
+				break;
+			}
+
 		case 'download_event_csv': {
 				require_admin_or_json_error();
 				$columns = event_csv_columns();
@@ -178,6 +215,7 @@ try {
 						continue;
 					}
 					$row = array_merge($event, $details[(string)$event['eventId']] ?? default_event_detail());
+					$row['eventId'] = (string)$event['eventId'];
 					$row['dateText'] = (string)($event['defaultDateText'] ?? '');
 					fputcsv($handle, array_map(static fn(string $field): string => event_csv_value($row, $field), array_keys($columns)));
 				}
@@ -210,6 +248,22 @@ try {
 					json_response(['ok' => false, 'message' => '保存対象が不正です。'], 400);
 				}
 				json_response(['ok' => true, 'message' => '保存しました。']);
+				break;
+			}
+
+		case 'save_manage_events': {
+				require_admin_or_json_error();
+				if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+					json_response(['ok' => false, 'message' => 'POSTで送信してください。'], 405);
+				}
+				$payload = get_request_json();
+				$year = (int)($payload['year'] ?? 0);
+				$month = (int)($payload['month'] ?? 0);
+				if ($year < 2026 || $year > 2036 || $month < 1 || $month > 12) {
+					json_response(['ok' => false, 'message' => '年月パラメータが不正です。'], 400);
+				}
+				$saved = save_manage_month_event_details($year, $month, (array)($payload['events'] ?? []));
+				json_response(['ok' => true, 'message' => count($saved) . '件を保存しました。']);
 				break;
 			}
 

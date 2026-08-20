@@ -1220,6 +1220,39 @@ textarea {
 	margin-bottom: 12px;
 }
 
+.event-manager {
+	max-width: 420px;
+}
+
+.event-form-list {
+	display: grid;
+	gap: 12px;
+}
+
+.event-detail-admin.event-type-unset {
+	border-color: #e05252;
+	background: #fff4f4;
+}
+
+.event-type-warning {
+	color: #c92a2a;
+	font-size: 12px;
+}
+
+.event-recommended {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 2px 0 12px;
+	color: #172033;
+	font-size: 14px;
+}
+
+.event-recommended input {
+	width: auto;
+	margin: 0;
+}
+
 .admin-image-list {
 	display: grid;
 	gap: 8px;
@@ -1398,6 +1431,51 @@ textarea {
 	.row-2 {
 		grid-template-columns: 1fr;
 		display: grid;
+	}
+
+	.admin-month-selects {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+
+	.admin-month-selects select {
+		min-width: 0;
+	}
+
+	.admin-month-selects .btn {
+		width: 100%;
+	}
+
+	.event-detail-admin {
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		padding: 10px;
+	}
+
+	.event-form-list,
+	.event-form,
+	.event-form .row,
+	.event-form .admin-row-pair {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.event-form input,
+	.event-form select,
+	.event-form textarea {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.event-detail-admin summary {
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.event-detail-admin summary strong {
+		flex: 0 0 auto;
+		white-space: nowrap;
 	}
 
 
