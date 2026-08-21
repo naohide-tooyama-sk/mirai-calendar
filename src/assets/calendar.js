@@ -160,7 +160,10 @@
 	function renderRecommended() {
 		const list = document.getElementById('recommendList');
 		const section = document.getElementById('recommendedSection');
-		const items = state.recommended.filter((item) => item && (item.eventId || item.id)).slice(0, 10);
+		const items = [...state.recommended]
+			.filter((item) => item && (item.eventId || item.id))
+			.sort((a, b) => compareRecommendDate(a, b))
+			.slice(0, 10);
 		if (!items.length) {
 			section.style.display = 'none';
 			return;
@@ -245,6 +248,23 @@
 		if (Number.isNaN(d.getTime())) return '';
 		const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
 		return (d.getMonth() + 1) + '/' + d.getDate() + ' (' + weekdays[d.getDay()] + ')';
+	}
+
+	function compareRecommendDate(a, b) {
+		const aTime = recommendDateTime(a);
+		const bTime = recommendDateTime(b);
+		if (aTime === bTime) return 0;
+		if (aTime == null && bTime != null) return 1;
+		if (aTime != null && bTime == null) return -1;
+		return aTime - bTime;
+	}
+
+	function recommendDateTime(item) {
+		if (!item) return null;
+		const value = item.startIso || item.startDate || item.dateText || item.date || '';
+		if (!value) return null;
+		const d = new Date(value);
+		return Number.isNaN(d.getTime()) ? null : d.getTime();
 	}
 
 	function formatRecommendDateParts(item) {
