@@ -168,6 +168,7 @@ function default_event_detail(): array {
 		'shortTitle' => '',
 		'shortDescription' => '',
 		'remainingText' => '',
+		'showRemaining' => false,
 		'recommended' => false,
 	];
 }
@@ -231,7 +232,7 @@ function normalize_event_detail_config(array $row): array {
 		'shortDescription' => 'descriptionText',
 	];
 	foreach ($detail as $key => $default) {
-		if ($key === 'recommended') {
+		if ($key === 'recommended' || $key === 'showRemaining') {
 			$detail[$key] = normalize_bool($row[$key] ?? false, false);
 			continue;
 		}
@@ -289,6 +290,7 @@ function enrich_event_with_detail(array $event, ?array $details = null, ?array $
 	$event['shortDescription'] = (string)($detail['shortDescription'] ?? '');
 	$event['detailSubtitle'] = (string)($detail['detailSubtitle'] ?? '');
 	$event['remainingText'] = (string)($detail['remainingText'] ?? '');
+	$event['showRemaining'] = normalize_bool($detail['showRemaining'] ?? false, false);
 	$event['capacityText'] = (string)($detail['capacityText'] ?? '');
 	$event['venueText'] = (string)($detail['locationText'] ?? '');
 	$event['applyUrl'] = (string)($detail['applyUrl'] ?? '');

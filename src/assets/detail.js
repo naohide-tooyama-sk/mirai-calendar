@@ -143,7 +143,8 @@
 		if (!capacity) return ['詳細をご確認ください'];
 		const values = capacity.split(/\s*[／\/]\s*|\r?\n/).filter(Boolean).slice(0, 1);
 		const remaining = String(ev.remainingText || '').trim();
-		return remaining ? values.concat([remaining]) : values;
+		const showRemaining = !!ev.showRemaining;
+		return showRemaining && remaining ? values.concat([remaining]) : values;
 	}
 
 	function formatTimeRange(ev) {

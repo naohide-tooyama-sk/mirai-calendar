@@ -18,6 +18,7 @@ function event_csv_columns(): array {
 		'locationText' => '場所',
 		'capacityText' => '定員',
 		'remainingText' => '残り人数',
+		'showRemaining' => '残り人数表示',
 		'applyUrl' => '申し込みフォームURL',
 		'recommended' => 'おすすめイベント',
 		'shortTitle' => 'おすすめイベント用タイトル',
@@ -26,7 +27,7 @@ function event_csv_columns(): array {
 }
 
 function event_csv_value(array $row, string $field): string {
-	if ($field === 'recommended') {
+	if ($field === 'recommended' || $field === 'showRemaining') {
 		return normalize_bool($row[$field] ?? false, false) ? '1' : '0';
 	}
 	if ($field === 'imageFilename') {
