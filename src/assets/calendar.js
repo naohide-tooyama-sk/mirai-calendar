@@ -3,8 +3,10 @@
 	const app = document.getElementById('app');
 	const today = new Date();
 	const currentMonthIndex = today.getFullYear() * 12 + today.getMonth();
-	const minMonthIndex = currentMonthIndex - 2;
-	const maxMonthIndex = currentMonthIndex + 2;
+	const pastMonths = Number.isInteger(boot.config && boot.config.pastMonths) ? boot.config.pastMonths : null;
+	const futureMonths = Number.isInteger(boot.config && boot.config.futureMonths) ? boot.config.futureMonths : null;
+	const minMonthIndex = pastMonths === null ? -Infinity : currentMonthIndex - pastMonths;
+	const maxMonthIndex = futureMonths === null ? Infinity : currentMonthIndex + futureMonths;
 
 	const state = {
 		year: today.getFullYear(),
@@ -13,7 +15,9 @@
 		eventsByDate: {},
 		holidays: {},
 		activeEvents: {},
+		calendarCacheById: calendarCacheById(boot.calendarCache),
 		recommended: Array.isArray(boot.recentEvents) ? boot.recentEvents : [],
+		eventCache: Array.isArray(boot.eventCache) ? boot.eventCache : [],
 		requestSeq: 0,
 	};
 
@@ -44,7 +48,12 @@
 			'    <img class="hero-logo" src="assets/images/mirai_logo.png" alt="未来勉強会">',
 			'    <img class="hero-title" src="assets/images/title.png" alt="イベントカレンダー">',
 			'  </section>',
-			'  <section class="calendar-card-v2">',
+			'  <section class="recommended-v2" id="recommendedSection">',
+			'    <h2 class="recommend-heading-v2"><span class="recommend-dots-v2"></span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_left.png" alt=""><span>おすすめイベント</span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_right.png" alt=""><span class="recommend-dots-v2"></span></h2>',
+			'    <div class="recommend-list-v2" id="recommendList"></div>',
+			'  </section>',
+			'  <section class="event-search-section"><h2 class="recommend-heading-v2"><span class="recommend-dots-v2"></span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_left.png" alt=""><span>イベントを検索する</span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_right.png" alt=""><span class="recommend-dots-v2"></span></h2><form id="eventSearchForm" class="event-search-form"><select id="eventType"><option value="">種別選択</option><option value="study">勉強会</option><option value="networking">交流会</option><option value="seminar">セミナー</option><option value="challenge">チャレンジ</option><option value="online">オンライン</option></select><select id="purpose"><option value="">参加目的選択</option><option value="networking">手軽に交流したい</option><option value="connections">人脈を増やしたい</option><option value="promotion">事業や自分をPRしたい</option><option value="startup">起業したい</option><option value="study">ビジネスを学びたい</option><option value="sports">体を動かしたい</option></select><button class="btn" type="submit">検索</button></form></section>',
+			'  <section class="calendar-card-v2" id="calendarSection">',
 			'    <div class="month-v2">',
 			'      <button type="button" class="month-arrow prev" id="prevMonth" aria-label="前の月">‹</button>',
 			'      <button type="button" class="month-label-v2" id="goToday"></button>',
@@ -55,15 +64,23 @@
 			'    <div class="legend-v2" id="legend"></div>',
 			'  </section>',
 			'  <div class="msg v2-status" id="status"></div>',
-			'  <section class="recommended-v2" id="recommendedSection">',
-			'    <h2 class="recommend-heading-v2"><span class="recommend-dots-v2"></span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_left.png" alt=""><span>おすすめイベント</span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_right.png" alt=""><span class="recommend-dots-v2"></span></h2>',
-			'    <div class="recommend-list-v2" id="recommendList"></div>',
-			'  </section>',
+			'  <section class="recommended-v2 event-list-section" id="eventListSection"><h2 class="recommend-heading-v2"><span class="recommend-dots-v2"></span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_left.png" alt=""><span>イベント一覧</span><img class="recommend-decoration-v2" src="assets/images/recomended_decoration_right.png" alt=""><span class="recommend-dots-v2"></span></h2><div class="recommend-list-v2" id="eventList"></div></section>',
 			'</main>',
+			'<nav class="floating-nav" aria-label="ページ内ナビゲーション">',
+			'  <a href="#recommendedSection" aria-label="おすすめイベントへ"><img src="assets/images/recommended_button.png" alt="おすすめイベント"></a>',
+			'  <a href="#calendarSection" aria-label="カレンダーへ"><img src="assets/images/calender_button.png" alt="カレンダー"></a>',
+			'  <a href="#eventListSection" aria-label="イベント一覧へ"><img src="assets/images/events_button.png" alt="イベント一覧"></a>',
+			'</nav>',
 		].join('');
+		document.querySelectorAll('.floating-nav a').forEach((link) => link.addEventListener('click', (event) => {
+			event.preventDefault();
+			const target = document.querySelector(link.getAttribute('href'));
+			if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}));
 		document.getElementById('prevMonth').addEventListener('click', () => moveMonth(-1));
 		document.getElementById('nextMonth').addEventListener('click', () => moveMonth(1));
 		document.getElementById('goToday').addEventListener('click', goToday);
+		document.getElementById('eventSearchForm').addEventListener('submit', (event) => { event.preventDefault(); const q = new URLSearchParams(); const type = document.getElementById('eventType').value; const purpose = document.getElementById('purpose').value; if (type) q.set('eventType', type); if (purpose) q.set('purpose', purpose); window.location.href = 'search.php' + (q.toString() ? '?' + q : ''); });
 	}
 
 	function initialize() {
@@ -98,11 +115,55 @@
 	}
 
 	function renderMonthFromData(data) {
+		if (Array.isArray(data.calendarCache)) state.calendarCacheById = calendarCacheById(data.calendarCache);
 		state.eventsByDate = data.eventsByDate || {};
 		state.holidays = data.holidays || {};
 		renderCalendar();
 		renderRecommended();
+		renderEventList();
 		renderLegend();
+	}
+
+	function renderEventList() {
+		const list = document.getElementById('eventList');
+		if (!list) return;
+		list.innerHTML = state.eventCache.map((item) => eventCard(item, false)).join('');
+		list.querySelectorAll('.recommend-card-v2').forEach((card) => card.addEventListener('click', () => {
+			openDetail({ eventId: card.dataset.eventId });
+		}));
+	}
+
+	function eventCard(item, recommended) {
+		const id = String(item.eventId || item.id || '');
+		const detailUrl = 'detail.php?eventId=' + encodeURIComponent(id);
+		const details = recommended ? (() => {
+			const remaining = item.showRemaining && item.remainingNumber !== '' ? '<span class="remaining-badge">' + esc(item.remainingNumber) + '</span>' : '';
+			const optional = [['場所', item.location], ['対象者', item.targetAudience], ['参加メリット', item.merit], ['参加費', item.fee], ['申し込み締め切り日時', item.applicationDeadline]].filter(([, value]) => String(value || '').trim()).map(([label, value]) => '<div><small>' + label + '</small><span>' + esc(value) + '</span></div>').join('');
+			const capacity = item.capacity || remaining ? '<div><small>定員</small><span>' + esc(item.capacity || '') + remaining + '</span></div>' : '';
+			return '<div class="event-card-meta">' + optional + capacity + '</div>';
+		})() : '';
+		const actions = recommended ? '<div class="event-card-actions"><a class="btn" href="' + esc(detailUrl) + '">詳細を見る</a>' + (item.applicationUrl ? '<a class="btn primary-admin-save" href="' + esc(item.applicationUrl) + '" target="_blank" rel="noopener">申し込む</a>' : '') + '</div>' : '';
+		const dateParts = formatRecommendDateParts(item);
+		const date = '<strong class="recommend-date-v2"><span class="recommend-date-main-v2">' + esc(dateParts.date) + '</span>' + (dateParts.weekday ? '<span class="recommend-weekday-v2">' + esc(dateParts.weekday) + '</span>' : '') + '<span class="recommend-start-time">' + esc(formatCardTime(item)) + '</span></strong>';
+		const typeClass = categoryClass(item);
+		const typeIcon = categoryIcon(item) || categoryIconById(item.eventTypeId);
+		const icon = typeIcon ? '<img class="recommend-type-icon ' + esc(typeClass) + '" src="assets/images/' + esc(typeIcon) + '" alt="">' : '';
+		return '<article class="event-card-common recommend-card-v2 ' + typeClass + '" data-detail-url="' + esc(detailUrl) + '" data-event-id="' + esc(id) + '">' + icon + '<div class="event-card-top"><img class="event-list-image" src="' + esc(item.mainImageUrl || 'assets/images/people.png') + '" alt=""></div><div class="event-card-content"><div class="event-card-date">' + date + '</div><h3>' + esc(item.shortTitle || item.title || 'イベント') + '</h3><p>' + esc(item.shortDescription || '') + '</p>' + details + '</div>' + actions + '</article>';
+	}
+
+	function formatCardDate(item) {
+		const date = new Date(item.startTime || item.date || '');
+		return Number.isNaN(date.getTime()) ? String(item.date || '') : (date.getMonth() + 1) + '/' + date.getDate();
+	}
+
+	function formatCardTime(item) {
+		const date = new Date(item.startTime || '');
+		return Number.isNaN(date.getTime()) ? String(item.startTime || '') : date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false });
+	}
+
+	function categoryIconById(id) {
+		const icons = { study: 'study.png', networking: 'team.png', seminar: 'seminar.png', challenge: 'challenge.png', online: 'online.png' };
+		return icons[id] ? '<img class="event-list-type-icon" src="assets/images/' + icons[id] + '" alt="">' : '';
 	}
 
 	function renderMonthLabel() {
@@ -147,7 +208,7 @@
 			(state.eventsByDate[dateKey] || []).forEach((ev, idx) => {
 				const id = dateKey + '-' + idx;
 				state.activeEvents[id] = ev;
-				html += '<button type="button" class="event-chip-v2 ' + esc(categoryClass(ev)) + '" data-event-id="' + esc(id) + '">' + esc(ev.title || ev.titleText || 'イベント') + '</button>';
+				html += '<button type="button" class="event-chip-v2 ' + esc(categoryClass(ev)) + '" data-event-id="' + esc(id) + '">' + esc(calendarEventLabel(ev)) + '</button>';
 			});
 			html += '</div>';
 		}
@@ -169,29 +230,11 @@
 			return;
 		}
 		section.style.display = '';
-		list.innerHTML = items.map((item) => {
-			const eventId = String(item.eventId || item.id || '');
-			const dateParts = formatRecommendDateParts(item);
-			const icon = categoryIcon(item);
-			return [
-				'<button type="button" class="recommend-card-v2" data-recommend-id="' + esc(eventId) + '">',
-				icon ? '  <img class="recommend-type-icon ' + esc(categoryClass(item)) + '" src="assets/images/' + esc(icon) + '" alt="">' : '',
-				item.catchImageUrl ? '  <img src="' + esc(item.catchImageUrl) + '" alt="">' : '  <span class="recommend-image-fallback"></span>',
-				'  <span class="recommend-body-v2">',
-				'    <strong class="recommend-date-v2"><span class="recommend-date-main-v2">' + esc(dateParts.date) + '</span>' + (dateParts.weekday ? '<span class="recommend-weekday-v2">' + esc(dateParts.weekday) + '</span>' : '') + '</strong>',
-				'    <span class="recommend-title-v2">' + esc(item.titleText || item.title || 'イベント') + '</span>',
-				'    <span class="recommend-lead-v2">' + esc(item.leadText || item.remainingText || item.remainingTextDetail || '詳細をチェックしよう。') + '</span>',
-				'  </span>',
-				'</button>',
-			].join('');
-		}).join('');
-		list.querySelectorAll('[data-recommend-id]').forEach((el) => {
-			el.addEventListener('click', () => {
-				const eventId = el.getAttribute('data-recommend-id');
-				const ev = items.find((item) => String(item.eventId || item.id || '') === eventId);
-				openDetail(ev);
-			});
-		});
+		list.innerHTML = items.map((item) => eventCard(item, true)).join('');
+		list.querySelectorAll('.recommend-card-v2').forEach((card) => card.addEventListener('click', (event) => {
+			if (event.target.closest('a')) return;
+			openDetail({ eventId: card.dataset.eventId });
+		}));
 	}
 
 	function renderLegend() {
@@ -230,6 +273,12 @@
 
 	function categoryClass(ev) {
 		const text = String((ev && ev.categoryText) || '');
+		const id = String((ev && ev.eventTypeId) || '');
+		if (id === 'online') return 'cat-online';
+		if (id === 'challenge') return 'cat-challenge';
+		if (id === 'seminar') return 'cat-seminar';
+		if (id === 'networking') return 'cat-exchange';
+		if (id === 'study') return 'cat-study';
 		if (text === 'オンライン') return 'cat-online';
 		if (text === 'チャレンジ') return 'cat-challenge';
 		if (text === 'セミナー') return 'cat-seminar';
@@ -240,7 +289,8 @@
 
 	function categoryIcon(ev) {
 		const type = String((ev && ev.categoryText) || '');
-		return { '勉強会': 'study.png', '交流会': 'team.png', 'セミナー': 'seminar.png', 'チャレンジ': 'challenge.png', 'オンライン': 'online.png' }[type] || '';
+		const id = String((ev && ev.eventTypeId) || '');
+		return { study: 'study.png', networking: 'team.png', seminar: 'seminar.png', challenge: 'challenge.png', online: 'online.png' }[id] || { '勉強会': 'study.png', '交流会': 'team.png', 'セミナー': 'seminar.png', 'チャレンジ': 'challenge.png', 'オンライン': 'online.png' }[type] || '';
 	}
 
 	function formatEventDate(iso) {
@@ -295,12 +345,30 @@
 		return {
 			eventsByDate: (res && res.eventsByDate) || {},
 			holidays: (res && res.holidays) || {},
+			calendarCache: (res && res.calendarCache) || [],
 			cacheUpdatedAt: (res && res.cacheUpdatedAt) || '',
 		};
 	}
 
 	function emptyMonthData() {
-		return { eventsByDate: {}, holidays: {}, cacheUpdatedAt: '' };
+		return { eventsByDate: {}, holidays: {}, calendarCache: [], cacheUpdatedAt: '' };
+	}
+
+	function calendarCacheById(rows) {
+		return (Array.isArray(rows) ? rows : []).reduce((map, row) => {
+			const id = String(row && row.eventId || '');
+			if (id) map[id] = row;
+			return map;
+		}, {});
+	}
+
+	function calendarEventLabel(event) {
+		const cached = state.calendarCacheById[String(event && (event.id || event.eventId) || '')] || {};
+		const title = String(cached.shortTitle || '').trim() || String(event && (event.title || event.titleText) || 'イベント');
+		const startTime = String(cached.startTime || '').trim();
+		if (!startTime) return title;
+		const match = startTime.match(/[T\s](\d{2}):(\d{2})/);
+		return match ? title + ' ' + match[1] + ':' + match[2] : title;
 	}
 
 	function monthKey(year, month) {

@@ -39,7 +39,7 @@
 		}
 
 		const d = eventData.detail || {};
-		const title = eventData.title || 'イベント';
+		const title = String(d.shortTitle || '').trim() || eventData.title || 'イベント';
 		const subtitle = eventData.detailSubtitle || 'つながる。学ぶ。挑戦する。';
 		const description = eventData.displayDescription || eventData.description || '';
 		const imageUrl = eventData.catchImageUrl || 'assets/images/people.png';
@@ -47,6 +47,13 @@
 		const assetBaseUrl = boot.assetBaseUrl || 'assets/images/';
 		const calendarIconUrl = (boot.assetBaseUrl || 'assets/images/') + 'google_calendar.png';
 		const typeIcon = categoryIcon(eventData);
+		const headerImageUrl = imageUrlById(d.headerImageId);
+		const footerImageUrl = imageUrlById(d.footerImageId);
+		const descriptionContent = [
+			headerImageUrl ? '<img class="detail-content-image" src="' + esc(headerImageUrl) + '" alt="">' : '',
+			description ? formatDescription(description) : '',
+			footerImageUrl ? '<img class="detail-content-image" src="' + esc(footerImageUrl) + '" alt="">' : '',
+		].join('');
 
 		app.innerHTML = [
 			'<main class="event-detail-v2">',
@@ -69,7 +76,7 @@
 			summaryItem('場所', venueParts(eventData), imageIcon(assetBaseUrl + 'place.png')),
 			summaryItem('定員', capacityParts(eventData), imageIcon(assetBaseUrl + 'team.png')),
 			'  </section>',
-			description ? plainCard('<div class="detail-description">' + formatDescription(description) + '</div>', 'text') : '',
+			descriptionContent ? plainCard('<div class="detail-description">' + descriptionContent + '</div>', 'text') : '',
 			'  <div class="detail-bottom-actions">',
 			applyUrl ? '    <button type="button" class="detail-apply" id="applyBtn"><span class="detail-apply-label">' + imageIcon(assetBaseUrl + 'edit.png') + 'このイベントに申し込む <b>›</b></span></button>' : '',
 			'    <button type="button" class="detail-calendar" id="calendarBtn"><img src="' + esc(calendarIconUrl) + '" alt=""><span>Googleカレンダーに追加</span></button>',
@@ -195,6 +202,12 @@
 
 	function imageIcon(src) {
 		return '<img src="' + esc(src) + '" alt="">';
+	}
+
+	function imageUrlById(id) {
+		const images = Array.isArray(boot.images) ? boot.images : [];
+		const image = images.find((item) => String(item.id) === String(id));
+		return image ? image.url : '';
 	}
 
 	function textOnly(html) {

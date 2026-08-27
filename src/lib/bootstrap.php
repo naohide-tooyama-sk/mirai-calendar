@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/event_types.php';
+
 const HOLIDAY_CALENDAR_ID = 'ja.japanese#holiday@group.v.calendar.google.com';
 
 function app_root_dir(): string {
@@ -51,6 +53,8 @@ function app_url(string $path): string {
 function defaults_config(): array {
 	return [
 		'timezone' => 'Asia/Tokyo',
+		'pastMonths' => null,
+		'futureMonths' => null,
 	];
 }
 
@@ -77,7 +81,8 @@ function ensure_storage_files(): void {
 		data_dir() . '/calendars.txt' => [],
 		data_dir() . '/images.txt' => [],
 		data_dir() . '/holidays.txt' => [],
-		data_dir() . '/event_details.txt' => [],
+		data_dir() . '/event_cache.txt' => [],
+		data_dir() . '/calender_cache.txt' => [],
 	];
 
 	foreach ($defaults as $path => $payload) {
@@ -141,7 +146,9 @@ function get_runtime_config(): array {
 	$out = array_merge(defaults_config(), is_array($cfg) ? $cfg : []);
 
 	$out['timezone'] = trim((string)($out['timezone'] ?? 'Asia/Tokyo')) ?: 'Asia/Tokyo';
-	$out = array_intersect_key($out, array_flip(['timezone']));
+	$out['pastMonths'] = normalize_month_limit($out['pastMonths'] ?? null);
+	$out['futureMonths'] = normalize_month_limit($out['futureMonths'] ?? null);
+	$out = array_intersect_key($out, array_flip(['timezone', 'pastMonths', 'futureMonths']));
 	return $out;
 }
 
@@ -150,7 +157,9 @@ function save_runtime_config(array $cfg): array {
 	$merged = array_merge($current, $cfg);
 
 	$merged['timezone'] = trim((string)($merged['timezone'] ?? 'Asia/Tokyo')) ?: 'Asia/Tokyo';
-	$merged = array_intersect_key($merged, array_flip(['timezone']));
+	$merged['pastMonths'] = normalize_month_limit($merged['pastMonths'] ?? null);
+	$merged['futureMonths'] = normalize_month_limit($merged['futureMonths'] ?? null);
+	$merged = array_intersect_key($merged, array_flip(['timezone', 'pastMonths', 'futureMonths']));
 	write_json_txt(data_dir() . '/config.txt', $merged);
 	return $merged;
 }
@@ -158,18 +167,25 @@ function save_runtime_config(array $cfg): array {
 function default_event_detail(): array {
 	return [
 		'eventId' => '',
-		'eventType' => '',
-		'imageFilename' => '',
-		'detailSubtitle' => '',
-		'timeText' => '',
-		'locationText' => '',
-		'capacityText' => '',
-		'applyUrl' => '',
+		'eventTypeId' => '',
+		'purposeTypeIds' => [],
 		'shortTitle' => '',
 		'shortDescription' => '',
-		'remainingText' => '',
+		'timeText' => '',
+		'startTime' => '',
+		'location' => '',
+		'capacity' => '',
+		'remainingNumber' => '',
 		'showRemaining' => false,
-		'recommended' => false,
+		'fee' => '',
+		'applicationUrl' => '',
+		'applicationDeadline' => '',
+		'targetAudience' => '',
+		'merit' => '',
+		'mainImageId' => '',
+		'headerImageId' => '',
+		'footerImageId' => '',
+		'recommendedFlag' => false,
 	];
 }
 
@@ -177,14 +193,14 @@ function event_details_file(string $monthKey): string {
 	if (!preg_match('/^\d{4}-\d{2}$/', $monthKey)) {
 		throw new InvalidArgumentException('年月の形式が不正です。');
 	}
-	return data_dir() . '/event_details-' . $monthKey . '.txt';
+	return data_dir() . '/events-' . $monthKey . '.txt';
 }
 
 function get_event_details_config(?string $monthKey = null): array {
 	ensure_storage_files();
 	$out = [];
 	$files = $monthKey === null
-		? array_merge(glob(data_dir() . '/event_details-????-??.txt') ?: [], [data_dir() . '/event_details.txt'])
+		? (glob(data_dir() . '/events-????-??.txt') ?: [])
 		: [event_details_file($monthKey)];
 	foreach ($files as $file) {
 		$rows = read_json_txt($file, []);
@@ -216,30 +232,32 @@ function save_event_details_config(array $rows, ?string $monthKey = null): array
 		}
 		$out[] = $detail;
 	}
-	write_json_txt($monthKey === null ? data_dir() . '/event_details.txt' : event_details_file($monthKey), $out);
+	if ($monthKey === null) {
+		$grouped = [];
+		foreach ($out as $row) {
+			$key = substr((string)$row['date'], 0, 7);
+			if (preg_match('/^\d{4}-\d{2}$/', $key)) $grouped[$key][] = $row;
+		}
+		foreach ($grouped as $key => $items) write_json_txt(event_details_file($key), $items);
+	} else {
+		write_json_txt(event_details_file($monthKey), $out);
+	}
 	return $out;
 }
 
 function normalize_event_detail_config(array $row): array {
 	$detail = default_event_detail();
-	$aliases = [
-		'eventType' => 'categoryText',
-		'imageFilename' => 'catchImageFilename',
-		'detailSubtitle' => 'heroSubtitle',
-		'timeText' => 'timeText',
-		'locationText' => 'venueText',
-		'shortTitle' => 'heroTitle',
-		'shortDescription' => 'descriptionText',
-	];
 	foreach ($detail as $key => $default) {
-		if ($key === 'recommended' || $key === 'showRemaining') {
+		if ($key === 'recommendedFlag' || $key === 'showRemaining') {
 			$detail[$key] = normalize_bool($row[$key] ?? false, false);
-			continue;
+		} elseif ($key === 'purposeTypeIds') {
+			$value = $row[$key] ?? [];
+			$detail[$key] = is_array($value) ? array_values(array_filter(array_map('strval', $value))) : array_values(array_filter(array_map('trim', explode(',', (string)$value))));
+		} else {
+			$detail[$key] = trim((string)($row[$key] ?? $default));
 		}
-		$alias = $aliases[$key] ?? $key;
-		$detail[$key] = trim((string)($row[$key] ?? ($alias !== $key ? ($row[$alias] ?? '') : '')));
 	}
-	$detail['applyUrl'] = sanitize_url((string)$detail['applyUrl']);
+	$detail['applicationUrl'] = sanitize_url((string)$detail['applicationUrl']);
 	return $detail;
 }
 
@@ -280,20 +298,19 @@ function get_image_url_by_filename(string $filename, ?array $images = null): str
 function enrich_event_with_detail(array $event, ?array $details = null, ?array $images = null): array {
 	$detail = ($details ?? get_event_detail_map())[(string)($event['id'] ?? '')] ?? default_event_detail();
 	$event['detail'] = $detail;
-	$event['catchImageUrl'] = get_image_url_by_filename((string)($detail['imageFilename'] ?? ''), $images)
-		?: get_image_url_by_id((string)($detail['catchImageId'] ?? ''), $images);
-	$event['categoryText'] = (string)($detail['eventType'] ?? '');
+	$event['catchImageUrl'] = get_image_url_by_id((string)($detail['mainImageId'] ?? ''), $images);
+	$event['categoryText'] = event_type_definitions()[(string)($detail['eventTypeId'] ?? '')] ?? '';
 	$event['displayDescription'] = (string)(strip_capacity_tag((string)($event['description'] ?? '')));
 	$event['timeText'] = (string)($detail['timeText'] ?? '');
-	$event['locationText'] = (string)($detail['locationText'] ?? '');
+	$event['locationText'] = (string)($detail['location'] ?? '');
 	$event['shortTitle'] = (string)($detail['shortTitle'] ?? '');
 	$event['shortDescription'] = (string)($detail['shortDescription'] ?? '');
-	$event['detailSubtitle'] = (string)($detail['detailSubtitle'] ?? '');
-	$event['remainingText'] = (string)($detail['remainingText'] ?? '');
+	$event['remainingText'] = (string)($detail['remainingNumber'] ?? '');
 	$event['showRemaining'] = normalize_bool($detail['showRemaining'] ?? false, false);
-	$event['capacityText'] = (string)($detail['capacityText'] ?? '');
-	$event['venueText'] = (string)($detail['locationText'] ?? '');
-	$event['applyUrl'] = (string)($detail['applyUrl'] ?? '');
+	$event['capacityText'] = (string)($detail['capacity'] ?? '');
+	$event['venueText'] = (string)($detail['location'] ?? '');
+	$event['applyUrl'] = (string)($detail['applicationUrl'] ?? '');
+	$event['detailSubtitle'] = (string)($detail['shortDescription'] ?? '');
 	return $event;
 }
 
@@ -345,48 +362,16 @@ function get_cached_event_options(): array {
 }
 
 function resolve_recent_events_payload(): array {
-	$catalog = [];
-	$details = get_event_detail_map();
-	$images = get_images();
-	foreach (get_cached_events_catalog() as $event) {
-		$catalog[$event['id']] = $event;
-	}
-
-	$now = new DateTime('today');
-	$out = [];
-	foreach ($details as $eventId => $detail) {
-		if (empty($detail['recommended']) || !isset($catalog[$eventId])) {
-			continue;
-		}
-
-		$event = enrich_event_with_detail($catalog[$eventId], $details, $images);
-		$start = parse_event_datetime($event['startIso']);
-		if (!$start || $start < $now) {
-			continue;
-		}
-
-		$out[] = [
-			'eventId' => $event['id'],
-			'dateText' => format_cached_event_datetime_text($event),
-			'titleText' => (string)($event['shortTitle'] ?: $event['title']),
-			'leadText' => (string)$event['shortDescription'],
-			'id' => $event['id'],
-			'calendarId' => $event['calendarId'],
-			'calendarName' => $event['calendarName'],
-			'title' => $event['title'],
-			'startIso' => $event['startIso'],
-			'endIso' => $event['endIso'],
-			'isAllDay' => $event['isAllDay'],
-			'location' => $event['location'],
-			'description' => $event['description'],
-			'categoryText' => $event['categoryText'],
-			'catchImageUrl' => $event['catchImageUrl'],
-			'remainingTextDetail' => $event['remainingText'],
-		];
-	}
-	usort($out, static fn(array $a, array $b): int => strcmp((string)$b['startIso'], (string)$a['startIso']));
-	$out = array_slice($out, 0, 10);
-	return $out;
+	$events = array_filter(get_event_cache(), static fn(array $event): bool => !empty($event['recommendedFlag']));
+	return array_map(static function (array $event): array {
+		$event['id'] = $event['eventId'];
+		$event['titleText'] = $event['shortTitle'] ?: ($event['title'] ?? 'イベント');
+		$event['leadText'] = $event['shortDescription'] ?? '';
+		$event['categoryText'] = event_type_definitions()[$event['eventTypeId'] ?? ''] ?? '';
+		$event['catchImageUrl'] = $event['mainImageUrl'] ?? '';
+		$event['remainingTextDetail'] = (string)($event['remainingNumber'] ?? '');
+		return $event;
+	}, array_slice($events, 0, 10));
 }
 
 function get_cached_events_catalog(): array {
@@ -708,36 +693,24 @@ function delete_image(string $id): void {
 
 	$details = get_event_details_config();
 	foreach ($details as $i => $detail) {
-		if ((string)($detail['catchImageId'] ?? '') === $id) {
-			$details[$i]['catchImageId'] = '';
+		if ((string)($detail['mainImageId'] ?? '') === $id) {
+			$details[$i]['mainImageId'] = '';
 		}
 	}
 	save_event_details_config($details);
 }
 
 function image_extension_from_mime(string $mime): string {
-	$map = [
-		'image/jpeg' => 'jpg',
-		'image/png' => 'png',
-		'image/gif' => 'gif',
-		'image/webp' => 'webp',
-	];
+	$map = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
 	return $map[$mime] ?? '';
 }
 
 function get_selected_images(array $ids, ?array $images = null, int $limit = 3): array {
 	$all = $images ?? get_images();
 	$map = [];
-	foreach ($all as $img) {
-		$map[$img['id']] = $img;
-	}
-
+	foreach ($all as $img) $map[$img['id']] = $img;
 	$out = [];
-	foreach ((array)$ids as $id) {
-		if (isset($map[$id])) {
-			$out[] = $map[$id];
-		}
-	}
+	foreach ((array)$ids as $id) if (isset($map[$id])) $out[] = $map[$id];
 	return array_slice($out, 0, max(0, $limit));
 }
 
@@ -783,6 +756,8 @@ function get_manage_month_events(int $year, int $month): array {
 			}
 			$events[] = array_merge($details[(string)$event['id']] ?? default_event_detail(), [
 				'eventId' => (string)$event['id'],
+				'date' => substr((string)$event['startIso'], 0, 10),
+				'startTime' => (string)$event['startIso'],
 				'dateText' => format_cached_event_datetime_text($event),
 				'title' => (string)$event['title'],
 			]);
@@ -806,32 +781,77 @@ function get_manage_event_copy_sources(int $year, int $month): array {
 }
 
 function save_manage_month_event_details(int $year, int $month, array $rows): array {
-	$currentEventIds = [];
-	foreach (get_manage_month_events($year, $month) as $event) {
-		$currentEventIds[(string)$event['eventId']] = true;
-	}
+	$saved = save_event_details_config($rows, get_month_key($year, $month));
+	refresh_event_caches();
+	return $saved;
+}
 
-	$replacement = [];
-	foreach ($rows as $row) {
-		if (!is_array($row)) {
-			continue;
-		}
-		$detail = normalize_event_detail_config($row);
-		if (isset($currentEventIds[$detail['eventId']])) {
-			$replacement[$detail['eventId']] = $detail;
+function refresh_event_caches(): void {
+	$details = get_event_detail_map();
+	$images = get_images();
+	$events = [];
+	foreach (glob(cache_dir() . '/month-*.txt') ?: [] as $path) {
+		$payload = read_json_txt($path, []);
+		foreach ((array)($payload['eventsByDate'] ?? []) as $list) {
+			foreach ((array)$list as $event) {
+				$event = normalize_cached_event_record($event);
+				if ($event && !isset($events[$event['id']])) $events[$event['id']] = enrich_event_with_detail($event, $details, $images);
+			}
 		}
 	}
+	$today = new DateTime('today', new DateTimeZone((string)get_runtime_config()['timezone']));
+	$catalog = array_values(array_filter($events, static function (array $event) use ($today): bool {
+		$start = parse_event_datetime((string)$event['startIso']);
+		return $start !== null && $start >= $today;
+	}));
+	usort($catalog, static fn(array $a, array $b): int => strcmp($a['startIso'], $b['startIso']));
+	write_json_txt(data_dir() . '/event_cache.txt', array_map(static fn(array $event): array => [
+		'eventId' => $event['id'],
+		'eventTypeId' => $event['detail']['eventTypeId'],
+		'purposeTypeIds' => $event['detail']['purposeTypeIds'],
+		'title' => $event['title'],
+		'shortTitle' => $event['shortTitle'],
+		'shortDescription' => $event['shortDescription'],
+		'date' => substr($event['startIso'], 0, 10),
+		'startTime' => $event['startIso'],
+		'location' => $event['locationText'],
+		'capacity' => $event['capacityText'],
+		'remainingNumber' => $event['detail']['remainingNumber'],
+		'showRemaining' => $event['showRemaining'],
+		'fee' => $event['detail']['fee'],
+		'applicationUrl' => $event['applyUrl'],
+		'applicationDeadline' => $event['detail']['applicationDeadline'],
+		'targetAudience' => $event['detail']['targetAudience'],
+		'merit' => $event['detail']['merit'],
+		'mainImageId' => $event['detail']['mainImageId'],
+		'mainImageUrl' => $event['catchImageUrl'],
+		'recommendedFlag' => $event['detail']['recommendedFlag'],
+		'startIso' => $event['startIso'],
+	], $catalog));
+	$cfg = get_runtime_config();
+	$rangeStart = $cfg['pastMonths'] === null ? null : (clone $today)->modify('-' . (int)$cfg['pastMonths'] . ' months -6 days');
+	$rangeEnd = $cfg['futureMonths'] === null ? null : (clone $today)->modify('+' . (int)$cfg['futureMonths'] . ' months +6 days');
+	$calendar = array_values(array_filter($catalog, static function (array $event) use ($rangeStart, $rangeEnd): bool {
+		$start = parse_event_datetime((string)$event['startIso']);
+		return $start !== null && ($rangeStart === null || $start >= $rangeStart) && ($rangeEnd === null || $start <= $rangeEnd);
+	}));
+	write_json_txt(data_dir() . '/calender_cache.txt', array_map(static fn(array $event): array => [
+		'eventId' => $event['id'],
+		'eventTypeId' => $event['detail']['eventTypeId'],
+		'shortTitle' => $event['shortTitle'] ?: $event['title'],
+		'date' => substr($event['startIso'], 0, 10),
+		'startTime' => $event['startIso'],
+	], $calendar));
+}
 
-	$merged = [];
-	foreach (get_event_details_config() as $detail) {
-		if (!isset($currentEventIds[$detail['eventId']])) {
-			$merged[] = $detail;
-		}
-	}
-	foreach ($replacement as $detail) {
-		$merged[] = $detail;
-	}
-	return save_event_details_config($merged);
+function get_event_cache(): array {
+	$rows = read_json_txt(data_dir() . '/event_cache.txt', []);
+	return is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
+}
+
+function get_calendar_cache(): array {
+	$rows = read_json_txt(data_dir() . '/calender_cache.txt', []);
+	return is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
 }
 
 function save_cached_month_data(int $year, int $month, array $payload): void {
@@ -872,6 +892,7 @@ function refresh_month_events(int $year, int $month): array {
 	];
 
 	save_cached_month_data($year, $month, $payload);
+	refresh_event_caches();
 	$payload['eventsByDate'] = enrich_events_by_date($payload['eventsByDate']);
 	return $payload;
 }
@@ -1090,6 +1111,13 @@ function normalize_bool($value, bool $fallback): bool {
 	return $fallback;
 }
 
+function normalize_month_limit($value): ?int {
+	if ($value === null || trim((string)$value) === '') {
+		return null;
+	}
+	return max(0, (int)$value);
+}
+
 function sanitize_url(string $url): string {
 	$url = trim($url);
 	if ($url === '') {
@@ -1170,9 +1198,13 @@ function bootstrap_calendar_payload(): array {
 		'page' => 'calendar',
 		'config' => [
 			'timezone' => $cfg['timezone'],
+			'pastMonths' => $cfg['pastMonths'],
+			'futureMonths' => $cfg['futureMonths'],
 			'assetBaseUrl' => app_url('assets/images/'),
 		],
 		'recentEvents' => resolve_recent_events_payload(),
+		'eventCache' => get_event_cache(),
+		'calendarCache' => get_calendar_cache(),
 		'calendars' => get_calendars(false),
 		'cacheData' => get_cached_month_data($year, $month),
 		'adminUrl' => app_url('manage.php'),

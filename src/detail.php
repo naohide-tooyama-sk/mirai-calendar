@@ -12,6 +12,7 @@ $boot = [
 	'calendarUrl' => app_url('index.php'),
 	'apiUrl' => app_url('api.php'),
 	'assetBaseUrl' => app_url('assets/images/'),
+	'images' => get_images(),
 ];
 ?>
 <!doctype html>

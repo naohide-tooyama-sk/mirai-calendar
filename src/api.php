@@ -129,6 +129,7 @@ try {
 					json_response(['ok' => false, 'message' => '年月パラメータが不正です。'], 400);
 				}
 				$data = get_cached_month_data($year, $month);
+				$data['calendarCache'] = get_calendar_cache();
 				json_response(['ok' => true, 'year' => $year, 'month' => $month] + $data);
 				break;
 			}
@@ -140,6 +141,7 @@ try {
 					json_response(['ok' => false, 'message' => '年月パラメータが不正です。'], 400);
 				}
 				$data = refresh_month_events($year, $month);
+				$data['calendarCache'] = get_calendar_cache();
 				json_response(['ok' => true, 'year' => $year, 'month' => $month] + $data);
 				break;
 			}
@@ -162,6 +164,9 @@ try {
 		case 'get_manage_data': {
 				require_admin_or_json_error();
 				$page = trim((string)($_GET['page'] ?? ''));
+				if ($page === 'config') {
+					json_response(['ok' => true, 'config' => get_runtime_config()]);
+				}
 				if ($page === 'calendars') {
 					json_response(['ok' => true, 'calendars' => get_calendars(true)]);
 				}
@@ -231,11 +236,7 @@ try {
 				}
 				$rows = normalize_event_csv_rows(read_event_csv_rows($_FILES['csv'] ?? []));
 				$saved = save_event_details_config($rows);
-				foreach (glob(data_dir() . '/event_details-????-??.txt') ?: [] as $legacyFile) {
-					if (!unlink($legacyFile)) {
-						throw new RuntimeException('旧月別イベント設定を削除できません。');
-					}
-				}
+				foreach ([data_dir() . '/event_details.txt', data_dir() . '/event_template.txt', data_dir() . '/event_templates.txt'] as $legacyFile) if (is_file($legacyFile)) @unlink($legacyFile);
 				json_response(['ok' => true, 'message' => count($saved) . '件を保存しました。', 'count' => count($saved)]);
 			}
 
@@ -273,6 +274,8 @@ try {
 				$payload = get_request_json();
 				$cfg = save_runtime_config([
 					'timezone' => $payload['timezone'] ?? 'Asia/Tokyo',
+					'pastMonths' => array_key_exists('pastMonths', $payload) ? $payload['pastMonths'] : null,
+					'futureMonths' => array_key_exists('futureMonths', $payload) ? $payload['futureMonths'] : null,
 				]);
 				save_calendars((array)($payload['calendars'] ?? []));
 				save_event_details_config((array)($payload['eventDetails'] ?? []));
@@ -289,6 +292,9 @@ try {
 				json_response(['ok' => true, 'event' => $event]);
 				break;
 			}
+
+		case 'get_event_cache':
+			json_response(['ok' => true, 'events' => get_event_cache()]);
 
 		case 'upload_image': {
 				require_admin_or_json_error();

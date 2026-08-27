@@ -66,6 +66,7 @@ $bootstrap = [
 			<div class="admin-grid">
 				<section class="card admin-top-menu">
 					<h1>設定</h1>
+					<a class="btn" href="<?= htmlspecialchars(app_url('manage_screen.php?page=config'), ENT_QUOTES, 'UTF-8') ?>">共通設定</a>
 					<a class="btn" href="<?= htmlspecialchars(app_url('manage_calendars.php'), ENT_QUOTES, 'UTF-8') ?>">カレンダー設定</a>
 					<a class="btn" href="<?= htmlspecialchars(app_url('manage_images.php'), ENT_QUOTES, 'UTF-8') ?>">画像管理</a>
 					<a class="btn" href="<?= htmlspecialchars(app_url('manage_events.php'), ENT_QUOTES, 'UTF-8') ?>">イベント管理</a>

@@ -10,8 +10,9 @@ if (!is_admin_logged_in()) {
 	exit;
 }
 
-$page = $managePage ?? '';
+$page = $managePage ?? trim((string)($_GET['page'] ?? ''));
 $titles = [
+	'config' => '共通設定',
 	'calendars' => 'カレンダー設定',
 	'images' => '画像管理',
 	'events' => 'イベント管理',
@@ -25,6 +26,7 @@ $boot = [
 	'title' => $titles[$page],
 	'apiUrl' => app_url('api.php'),
 	'topUrl' => app_url('manage.php'),
+	'config' => get_runtime_config(),
 ];
 ?>
 <!doctype html>
