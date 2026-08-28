@@ -7,7 +7,22 @@ $type = trim((string)($_GET['eventType'] ?? ''));
 $purpose = trim((string)($_GET['purpose'] ?? ''));
 $types = event_type_definitions();
 $purposes = purpose_type_definitions();
-$events = array_filter(get_event_cache(), static function (array $event) use ($type, $purpose): bool {
+$runtimeConfig = get_runtime_config();
+$searchTimezone = new DateTimeZone($runtimeConfig['timezone']);
+$today = new DateTimeImmutable('today', $searchTimezone);
+$events = array_filter(get_event_cache(), static function (array $event) use ($type, $purpose, $today, $searchTimezone): bool {
+	$startValue = trim((string)($event['startTime'] ?? $event['date'] ?? ''));
+	if ($startValue === '') {
+		return false;
+	}
+	try {
+		$eventDate = (new DateTimeImmutable($startValue, $searchTimezone))->setTimezone($searchTimezone)->format('Y-m-d');
+	} catch (Throwable $e) {
+		return false;
+	}
+	if ($eventDate < $today->format('Y-m-d')) {
+		return false;
+	}
 	$typeMatch = $type === '' || (string)($event['eventTypeId'] ?? '') === $type;
 	$purposeMatch = $purpose === '' || in_array($purpose, (array)($event['purposeTypeIds'] ?? []), true);
 	return $typeMatch && $purposeMatch;
@@ -68,14 +83,14 @@ function search_card(array $event): string {
 	<main class="search-page">
 		<header class="detail-topbar"><a class="detail-back" href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>">‹ 戻る</a><img class="detail-logo" src="<?= htmlspecialchars(app_url('assets/images/mirai_logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="未来勉強会"></header>
 		<section class="event-search-section">
-			<form class="event-search-form" method="get"><select name="eventType">
-					<option value="">種別選択</option><?php foreach ($types as $id => $label): ?><option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>" <?= $type === $id ? ' selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
-				</select><select name="purpose">
+			<form class="event-search-form" method="get"><select id="purpose" name="purpose">
 					<option value="">参加目的選択</option><?php foreach ($purposes as $id => $label): ?><option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>" <?= $purpose === $id ? ' selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
+				</select><select id="eventType" name="eventType">
+					<option value="">種別選択</option><?php foreach ($types as $id => $label): ?><option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>" <?= $type === $id ? ' selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
 				</select><button class="btn" type="submit">検索</button></form>
 		</section>
 		<section class="search-results-v2 event-list-section">
-			<h1 class="search-results-heading">イベント検索結果</h1><?php if (!$events): ?><p class="search-no-results">該当するイベントはありません。</p><?php endif; ?>
+			<h1 class="search-results-heading">イベント検索結果</h1><?php if (!$events): ?><p class="search-no-results">該当するイベントはありません</p><?php endif; ?>
 			<div class="event-list-grid-v2"><?php foreach ($events as $event): ?><?= search_card($event) ?><?php endforeach; ?></div>
 		</section>
 	</main>

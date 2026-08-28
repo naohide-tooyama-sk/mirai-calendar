@@ -20,6 +20,6 @@ $envOrLocal = static function (string $envKey, string $localKey, array $local): 
 
 return [
 	'google_api_key' => $envOrLocal('GOOGLE_API_KEY', 'google_api_key', $local),
-	'manage_user' => $envOrLocal('MANAGE_USER', 'manage_user', $local),
-	'manage_password_hash' => $envOrLocal('MANAGE_PASSWORD_HASH', 'manage_password_hash', $local),
+	'admin_user' => $envOrLocal('ADMIN_USER', 'admin_user', $local),
+	'admin_password_hash' => $envOrLocal('ADMIN_PASSWORD_HASH', 'admin_password_hash', $local),
 ];

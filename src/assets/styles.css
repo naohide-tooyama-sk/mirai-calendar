@@ -1593,7 +1593,7 @@ textarea {
 
 .event-search-section .recommend-heading-v2 {
 	margin-bottom: 14px;
-	font-size: 20px;
+	font-size: 22px;
 }
 
 .event-search-form select {
@@ -1604,6 +1604,14 @@ textarea {
 	color: var(--ink);
 	flex: 1 1 0;
 	min-width: 0;
+}
+
+.event-search-form #purpose {
+	flex: 1.15 1 0;
+}
+
+.event-search-form #eventType {
+	flex: 0.85 1 0;
 }
 
 .event-search-form .btn {
@@ -1721,10 +1729,23 @@ body .recommended-v2 .recommended-event-card-v2 .event-card-content {
 }
 
 body .recommended-v2 .recommended-event-card-v2 .recommended-card-side {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	min-width: 0;
+	margin: 10px 0;
+	padding-left: 26px;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-card-side::before {
+	position: absolute;
+	top: 50%;
+	left: 0;
+	height: 66.666%;
+	border-left: 1px solid rgba(104, 195, 232, 0.55);
+	content: '';
+	transform: translateY(-50%);
 }
 
 body .recommended-v2 .recommended-event-card-v2 .recommended-card-summary-wrap {
@@ -1872,7 +1893,7 @@ body .event-list-section .event-list-card-v2,
 body .search-results-v2 .event-list-card-v2 {
 	display: grid;
 	grid-template-columns: 1fr;
-	grid-template-rows: auto auto;
+	grid-template-rows: 104px minmax(0, 1fr);
 	gap: 16px;
 	padding: 10px;
 	border: 1px solid rgba(22, 97, 189, 0.14);
@@ -1883,13 +1904,18 @@ body .search-results-v2 .event-list-card-v2 {
 	color: var(--ink);
 }
 
+body .event-list-section .event-list-card-v2 .recommended-card-body,
+body .event-list-section .event-list-card-v2 .recommended-card-main {
+	display: contents;
+}
+
 body .event-list-section .event-list-card-v2 .event-card-top,
 body .search-results-v2 .event-list-card-v2 .event-card-top {
 	display: block;
 	width: 100%;
 	height: 104px;
 	min-height: 104px;
-	margin-bottom: 8px;
+	margin-bottom: 0;
 }
 
 body .event-list-section .event-list-card-v2 .event-card-top .event-list-image,
@@ -1914,6 +1940,14 @@ body .search-results-v2 .event-list-card-v2 .event-card-content {
 	margin: 0;
 	align-self: stretch;
 	justify-self: stretch;
+}
+
+body .event-list-section .event-list-card-v2 .event-card-date,
+body .search-results-v2 .event-list-card-v2 .event-card-date {
+	display: flex;
+	align-items: center;
+	height: 24px;
+	min-height: 24px;
 }
 
 body .event-list-section .event-list-card-v2.cat-study .event-card-content h3,
@@ -1946,6 +1980,15 @@ body .search-results-v2 .event-list-card-v2.cat-online .event-card-content h3 {
 	max-width: 72rem;
 }
 
+.event-list-message {
+	grid-column: 1 / -1;
+	margin: 18px 0 0;
+	color: #075bb9;
+	font-size: 17px;
+	font-weight: 900;
+	text-align: center;
+}
+
 .search-results-heading {
 	margin: 0 0 12px;
 	color: #063a99;
@@ -1955,8 +1998,10 @@ body .search-results-v2 .event-list-card-v2.cat-online .event-card-content h3 {
 }
 
 .search-no-results {
+	margin: 28px 0 8px;
 	color: var(--ink);
 	font-size: 16px;
+	text-align: center;
 }
 
 @media (max-width: 520px) {

@@ -801,8 +801,6 @@ function refresh_event_caches(): void {
 	$cfg = get_runtime_config();
 	$timezone = (string)($cfg['timezone'] ?? 'Asia/Tokyo');
 	$today = new DateTime('today', new DateTimeZone($timezone));
-	$rangeStart = $cfg['pastMonths'] === null ? null : (clone $today)->modify('-' . (int)$cfg['pastMonths'] . ' months -6 days');
-	$rangeEnd = $cfg['futureMonths'] === null ? null : (clone $today)->modify('+' . (int)$cfg['futureMonths'] . ' months +6 days');
 
 	$details = get_event_detail_map();
 	$images = get_images();
@@ -816,13 +814,7 @@ function refresh_event_caches(): void {
 					continue;
 				}
 				$start = parse_event_datetime((string)$event['startIso']);
-				if ($start === null) {
-					continue;
-				}
-				if ($rangeStart !== null && $start < $rangeStart) {
-					continue;
-				}
-				if ($rangeEnd !== null && $start > $rangeEnd) {
+				if ($start === null || $start < $today) {
 					continue;
 				}
 				if (!isset($events[$event['id']])) {
@@ -834,29 +826,33 @@ function refresh_event_caches(): void {
 
 	$catalog = array_values($events);
 	usort($catalog, static fn(array $a, array $b): int => strcmp($a['startIso'], $b['startIso']));
-	write_json_txt(data_dir() . '/event_cache.txt', array_map(static fn(array $event): array => [
-		'eventId' => $event['id'],
-		'eventTypeId' => $event['detail']['eventTypeId'],
-		'purposeTypeIds' => $event['detail']['purposeTypeIds'],
-		'title' => $event['title'],
-		'shortTitle' => $event['shortTitle'],
-		'shortDescription' => $event['shortDescription'],
-		'date' => substr($event['startIso'], 0, 10),
-		'startTime' => $event['startIso'],
-		'location' => $event['locationText'],
-		'capacity' => $event['capacityText'],
-		'remainingNumber' => $event['detail']['remainingNumber'],
-		'showRemaining' => $event['showRemaining'],
-		'fee' => $event['detail']['fee'],
-		'applicationUrl' => $event['applyUrl'],
-		'applicationDeadline' => $event['detail']['applicationDeadline'],
-		'targetAudience' => $event['detail']['targetAudience'],
-		'merit' => $event['detail']['merit'],
-		'mainImageId' => $event['detail']['mainImageId'],
-		'mainImageUrl' => $event['catchImageUrl'],
-		'recommendedFlag' => $event['detail']['recommendedFlag'],
-		'startIso' => $event['startIso'],
-	], $catalog));
+	write_json_txt(data_dir() . '/event_cache.txt', array_map(static function (array $event): array {
+		// events-yyyy-mm.txt に未保存のイベントは月キャッシュのタイトル/開始日時を使う
+		$hasDetail = $event['detail']['eventId'] !== '';
+		return [
+			'eventId' => $event['id'],
+			'eventTypeId' => $event['detail']['eventTypeId'],
+			'purposeTypeIds' => $event['detail']['purposeTypeIds'],
+			'title' => $event['title'],
+			'shortTitle' => $hasDetail ? $event['shortTitle'] : $event['title'],
+			'shortDescription' => $event['shortDescription'],
+			'date' => substr($event['startIso'], 0, 10),
+			'startTime' => $hasDetail ? $event['detail']['startTime'] : $event['startIso'],
+			'location' => $event['locationText'],
+			'capacity' => $event['capacityText'],
+			'remainingNumber' => $event['detail']['remainingNumber'],
+			'showRemaining' => $event['showRemaining'],
+			'fee' => $event['detail']['fee'],
+			'applicationUrl' => $event['applyUrl'],
+			'applicationDeadline' => $event['detail']['applicationDeadline'],
+			'targetAudience' => $event['detail']['targetAudience'],
+			'merit' => $event['detail']['merit'],
+			'mainImageId' => $event['detail']['mainImageId'],
+			'mainImageUrl' => $event['catchImageUrl'],
+			'recommendedFlag' => $event['detail']['recommendedFlag'],
+			'startIso' => $event['startIso'],
+		];
+	}, $catalog));
 
 	$calendar = array_values(array_map(static function (array $event) use ($details): array {
 		$detail = $details[(string)($event['id'] ?? '')] ?? default_event_detail();
@@ -1252,8 +1248,8 @@ function is_admin_logged_in(): bool {
 
 function admin_login(string $username, string $password): bool {
 	$cfg = load_app_config();
-	$expectedUser = (string)($cfg['manage_user'] ?? 'admin');
-	$hash = (string)($cfg['manage_password_hash'] ?? '');
+	$expectedUser = (string)($cfg['admin_user'] ?? 'admin');
+	$hash = (string)($cfg['admin_password_hash'] ?? '');
 
 	if (!hash_equals($expectedUser, $username)) {
 		return false;
