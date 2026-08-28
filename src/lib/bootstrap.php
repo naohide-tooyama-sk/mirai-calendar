@@ -754,10 +754,12 @@ function get_manage_month_events(int $year, int $month): array {
 			if ($event === null || !str_starts_with((string)$event['startIso'], $monthKey)) {
 				continue;
 			}
-			$events[] = array_merge($details[(string)$event['id']] ?? default_event_detail(), [
+			$detail = $details[(string)$event['id']] ?? default_event_detail();
+			$events[] = array_merge($detail, [
 				'eventId' => (string)$event['id'],
 				'date' => substr((string)$event['startIso'], 0, 10),
-				'startTime' => (string)$event['startIso'],
+				'startTime' => (string)($detail['startTime'] ?? ''),
+				'timeText' => (string)($detail['timeText'] ?? ''),
 				'dateText' => format_cached_event_datetime_text($event),
 				'title' => (string)$event['title'],
 			]);
@@ -781,12 +783,27 @@ function get_manage_event_copy_sources(int $year, int $month): array {
 }
 
 function save_manage_month_event_details(int $year, int $month, array $rows): array {
-	$saved = save_event_details_config($rows, get_month_key($year, $month));
+	$preserved = [];
+	foreach ($rows as $row) {
+		if (!is_array($row)) {
+			continue;
+		}
+		$preserved[] = array_merge($row, [
+			'startTime' => trim((string)($row['startTime'] ?? '')),
+		]);
+	}
+	$saved = save_event_details_config($preserved, get_month_key($year, $month));
 	refresh_event_caches();
 	return $saved;
 }
 
 function refresh_event_caches(): void {
+	$cfg = get_runtime_config();
+	$timezone = (string)($cfg['timezone'] ?? 'Asia/Tokyo');
+	$today = new DateTime('today', new DateTimeZone($timezone));
+	$rangeStart = $cfg['pastMonths'] === null ? null : (clone $today)->modify('-' . (int)$cfg['pastMonths'] . ' months -6 days');
+	$rangeEnd = $cfg['futureMonths'] === null ? null : (clone $today)->modify('+' . (int)$cfg['futureMonths'] . ' months +6 days');
+
 	$details = get_event_detail_map();
 	$images = get_images();
 	$events = [];
@@ -795,15 +812,27 @@ function refresh_event_caches(): void {
 		foreach ((array)($payload['eventsByDate'] ?? []) as $list) {
 			foreach ((array)$list as $event) {
 				$event = normalize_cached_event_record($event);
-				if ($event && !isset($events[$event['id']])) $events[$event['id']] = enrich_event_with_detail($event, $details, $images);
+				if ($event === null) {
+					continue;
+				}
+				$start = parse_event_datetime((string)$event['startIso']);
+				if ($start === null) {
+					continue;
+				}
+				if ($rangeStart !== null && $start < $rangeStart) {
+					continue;
+				}
+				if ($rangeEnd !== null && $start > $rangeEnd) {
+					continue;
+				}
+				if (!isset($events[$event['id']])) {
+					$events[$event['id']] = enrich_event_with_detail($event, $details, $images);
+				}
 			}
 		}
 	}
-	$today = new DateTime('today', new DateTimeZone((string)get_runtime_config()['timezone']));
-	$catalog = array_values(array_filter($events, static function (array $event) use ($today): bool {
-		$start = parse_event_datetime((string)$event['startIso']);
-		return $start !== null && $start >= $today;
-	}));
+
+	$catalog = array_values($events);
 	usort($catalog, static fn(array $a, array $b): int => strcmp($a['startIso'], $b['startIso']));
 	write_json_txt(data_dir() . '/event_cache.txt', array_map(static fn(array $event): array => [
 		'eventId' => $event['id'],
@@ -828,20 +857,18 @@ function refresh_event_caches(): void {
 		'recommendedFlag' => $event['detail']['recommendedFlag'],
 		'startIso' => $event['startIso'],
 	], $catalog));
-	$cfg = get_runtime_config();
-	$rangeStart = $cfg['pastMonths'] === null ? null : (clone $today)->modify('-' . (int)$cfg['pastMonths'] . ' months -6 days');
-	$rangeEnd = $cfg['futureMonths'] === null ? null : (clone $today)->modify('+' . (int)$cfg['futureMonths'] . ' months +6 days');
-	$calendar = array_values(array_filter($catalog, static function (array $event) use ($rangeStart, $rangeEnd): bool {
-		$start = parse_event_datetime((string)$event['startIso']);
-		return $start !== null && ($rangeStart === null || $start >= $rangeStart) && ($rangeEnd === null || $start <= $rangeEnd);
-	}));
-	write_json_txt(data_dir() . '/calender_cache.txt', array_map(static fn(array $event): array => [
-		'eventId' => $event['id'],
-		'eventTypeId' => $event['detail']['eventTypeId'],
-		'shortTitle' => $event['shortTitle'] ?: $event['title'],
-		'date' => substr($event['startIso'], 0, 10),
-		'startTime' => $event['startIso'],
-	], $calendar));
+
+	$calendar = array_values(array_map(static function (array $event) use ($details): array {
+		$detail = $details[(string)($event['id'] ?? '')] ?? default_event_detail();
+		return [
+			'eventId' => (string)$event['id'],
+			'eventTypeId' => (string)($detail['eventTypeId'] ?? ''),
+			'shortTitle' => (string)($detail['shortTitle'] ?? '') ?: (string)($event['title'] ?? 'イベント'),
+			'date' => substr((string)$event['startIso'], 0, 10),
+			'startTime' => (string)($detail['startTime'] ?? $event['startIso'] ?? ''),
+		];
+	}, $catalog));
+	write_json_txt(data_dir() . '/calender_cache.txt', $calendar);
 }
 
 function get_event_cache(): array {

@@ -10,6 +10,7 @@
 	const requestedMonthChoice = requestedYear * 12 + requestedMonth - 1;
 	const selectedMonthChoice = monthChoices.reduce((nearest, choice) => Math.abs(choice.value - requestedMonthChoice) < Math.abs(nearest.value - requestedMonthChoice) ? choice : nearest, monthChoices[0]);
 	const state = { calendars: [], images: [], events: [], copySources: [], eventYear: selectedMonthChoice.year, eventMonth: selectedMonthChoice.month };
+	syncDateParam(state.eventYear, state.eventMonth);
 
 	render();
 	load();
@@ -74,6 +75,7 @@
 		setStatus('予定を読み込み中...', false);
 		request(apiUrl('refresh_month_events', { year, month })).then(() => request(apiUrl('get_manage_events', { year, month }))).then((data) => {
 			Object.assign(state, data, { eventYear: data.year, eventMonth: data.month });
+			syncDateParam(state.eventYear, state.eventMonth);
 			renderEventManager();
 			setStatus('', false);
 			document.body.classList.remove('admin-loading');
@@ -160,6 +162,13 @@
 	function saveButton() { return '<div class="save-actions"><button class="btn primary-admin-save" id="saveBtn">保存</button><div class="msg" id="status"></div></div>'; }
 	function value(selector) { const input = document.querySelector(selector); return input ? input.value.trim() : ''; }
 	function valueIn(form, field) { const input = form.querySelector('[data-field="' + field + '"]'); return input ? input.value.trim() : ''; }
+	function syncDateParam(year, month) {
+		const params = new URLSearchParams(window.location.search);
+		params.set('date', String(year) + String(month).padStart(2, '0'));
+		const url = new URL(window.location.href);
+		url.search = params.toString();
+		window.history.replaceState({}, '', url);
+	}
 	function openModal(url) { document.getElementById('modalImage').src = url; document.getElementById('imageModal').hidden = false; }
 	function closeModal() { document.getElementById('imageModal').hidden = true; }
 	function setStatus(message, error, ok) { const status = document.getElementById('status'); if (!status) return; status.textContent = message || ''; status.className = 'msg ' + (error ? 'err' : ok ? 'ok' : ''); }

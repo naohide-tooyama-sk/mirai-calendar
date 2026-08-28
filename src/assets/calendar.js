@@ -378,8 +378,9 @@
 		const title = String(cached.shortTitle || '').trim() || String(event && (event.title || event.titleText) || 'イベント');
 		const startTime = String(cached.startTime || '').trim();
 		if (!startTime) return title;
-		const match = startTime.match(/[T\s](\d{2}):(\d{2})/);
-		return match ? title + ' ' + match[1] + ':' + match[2] : title;
+		const match = startTime.match(/(\d{1,2}):(\d{2})/);
+		const displayTime = match ? match[1].padStart(2, '0') + ':' + match[2] : startTime;
+		return title + ' ' + displayTime;
 	}
 
 	function monthKey(year, month) {
