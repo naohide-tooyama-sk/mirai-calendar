@@ -306,11 +306,18 @@ body.page-exit-left .v2-main {
 
 .recommend-list-v2 {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
+	grid-template-columns: 1fr;
 	gap: 10px;
 }
 
-.recommend-card-v2 {
+.event-list-grid-v2 {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.recommend-card-v2,
+.recommended-event-card-v2 {
 	position: relative;
 	display: grid;
 	grid-template-columns: 42% 58%;
@@ -327,7 +334,27 @@ body.page-exit-left .v2-main {
 	color: var(--ink);
 }
 
-.recommend-card-v2 img,
+.event-list-card-v2 {
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-rows: auto auto;
+	gap: 12px;
+	min-width: 0;
+	min-height: 122px;
+	padding: 10px;
+	border: 1px solid rgba(14, 95, 194, 0.16);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.97);
+	box-shadow: 0 4px 10px rgba(28, 92, 170, 0.08);
+	text-align: left;
+	text-decoration: none;
+	color: var(--ink);
+}
+
+.recommend-card-v2 .event-card-top img,
+.recommend-card-v2 .event-list-image,
+.recommend-card-v2 .event-card-image-empty,
 .recommend-image-fallback {
 	width: 100%;
 	height: 104px;
@@ -337,7 +364,9 @@ body.page-exit-left .v2-main {
 	align-self: end;
 }
 
-.recommend-card-v2 .recommend-type-icon {
+.recommend-card-v2 .recommend-type-icon,
+.recommended-event-card-v2 .recommend-type-icon,
+.event-list-card-v2 .recommend-type-icon {
 	position: absolute;
 	top: -9px;
 	left: -7px;
@@ -352,23 +381,33 @@ body.page-exit-left .v2-main {
 	object-fit: contain;
 }
 
-.recommend-card-v2 .recommend-type-icon.cat-study {
+.recommend-card-v2 .recommend-type-icon.cat-study,
+.recommended-event-card-v2 .recommend-type-icon.cat-study,
+.event-list-card-v2 .recommend-type-icon.cat-study {
 	background: var(--study);
 }
 
-.recommend-card-v2 .recommend-type-icon.cat-exchange {
+.recommend-card-v2 .recommend-type-icon.cat-exchange,
+.recommended-event-card-v2 .recommend-type-icon.cat-exchange,
+.event-list-card-v2 .recommend-type-icon.cat-exchange {
 	background: var(--exchange);
 }
 
-.recommend-card-v2 .recommend-type-icon.cat-seminar {
+.recommend-card-v2 .recommend-type-icon.cat-seminar,
+.recommended-event-card-v2 .recommend-type-icon.cat-seminar,
+.event-list-card-v2 .recommend-type-icon.cat-seminar {
 	background: var(--seminar);
 }
 
-.recommend-card-v2 .recommend-type-icon.cat-challenge {
+.recommend-card-v2 .recommend-type-icon.cat-challenge,
+.recommended-event-card-v2 .recommend-type-icon.cat-challenge,
+.event-list-card-v2 .recommend-type-icon.cat-challenge {
 	background: var(--challenge);
 }
 
-.recommend-card-v2 .recommend-type-icon.cat-online {
+.recommend-card-v2 .recommend-type-icon.cat-online,
+.recommended-event-card-v2 .recommend-type-icon.cat-online,
+.event-list-card-v2 .recommend-type-icon.cat-online {
 	background: var(--online);
 }
 
@@ -1621,30 +1660,49 @@ textarea {
 
 body .recommended-v2 .recommend-list-v2 {
 	display: grid;
+	grid-template-columns: 1fr;
+	gap: 10px;
+}
+
+body .event-list-section .recommend-list-v2 {
+	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 10px;
 }
 
-body .recommended-v2 .recommend-card-v2 {
+body .recommended-v2 .recommended-event-card-v2 {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	grid-template-rows: 104px auto auto;
 	width: 100%;
 	min-width: 0;
 	box-sizing: border-box;
-	padding: 8px;
+	padding: 10px;
 	overflow: visible;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-top {
+body .recommended-v2 .recommended-event-card-v2 .recommended-card-body {
+	display: grid;
+	grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+	gap: 14px;
+	align-items: start;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-card-main {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .event-card-top {
 	display: block;
 	width: 100%;
 	height: 104px;
 	min-height: 104px;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-top .event-list-image,
-body .recommended-v2 .recommend-card-v2 .event-card-image-empty {
+body .recommended-v2 .recommended-event-card-v2 .event-card-top .event-list-image,
+body .recommended-v2 .recommended-event-card-v2 .event-card-image-empty {
 	display: block;
 	width: 100%;
 	height: 104px;
@@ -1653,62 +1711,130 @@ body .recommended-v2 .recommend-card-v2 .event-card-image-empty {
 	object-fit: cover;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-content {
+body .recommended-v2 .recommended-event-card-v2 .event-card-content {
 	display: block;
-	grid-column: 1;
 	width: 100%;
 	min-width: 0;
-	margin: 8px 0 0;
+	margin: 0;
 	align-self: start;
 	justify-self: stretch;
 }
 
-body .recommended-v2 .recommend-card-v2.cat-study .event-card-content h3 {
+body .recommended-v2 .recommended-event-card-v2 .recommended-card-side {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-card-summary-wrap {
+	display: block;
+	width: 100%;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-card-summary {
+	display: grid;
+	gap: 8px;
+	padding: 8px 10px;
+	border-radius: 12px;
+	background: rgba(140, 201, 255, 0.22);
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-summary-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-summary-icon {
+	width: 18px;
+	height: 18px;
+	object-fit: contain;
+	flex: 0 0 18px;
+	margin-top: 2px;
+	filter: brightness(0) saturate(100%) invert(31%) sepia(94%) saturate(2464%) hue-rotate(201deg) brightness(95%) contrast(96%);
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-summary-item:last-child .recommended-summary-icon {
+	width: 15px;
+	height: 15px;
+	flex-basis: 15px;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-summary-value {
+	min-width: 0;
+	color: #0c5dd1;
+	font-size: 13px;
+	font-weight: 800;
+	line-height: 1.4;
+	word-break: break-word;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .recommended-summary-value .recommended-remaining-badge {
+	display: inline-block;
+	margin-top: 0;
+	padding: 2px 8px;
+	border: 1px solid #0b64d8;
+	border-radius: 8px;
+	background: transparent;
+	color: #0b64d8;
+	font-size: 12px;
+	font-weight: 900;
+	line-height: 1.5;
+	text-align: center;
+}
+
+body .recommended-v2 .recommended-event-card-v2.cat-study .event-card-content h3 {
 	color: var(--study);
 }
 
-body .recommended-v2 .recommend-card-v2.cat-exchange .event-card-content h3 {
+body .recommended-v2 .recommended-event-card-v2.cat-exchange .event-card-content h3 {
 	color: var(--exchange);
 }
 
-body .recommended-v2 .recommend-card-v2.cat-seminar .event-card-content h3 {
+body .recommended-v2 .recommended-event-card-v2.cat-seminar .event-card-content h3 {
 	color: var(--seminar);
 }
 
-body .recommended-v2 .recommend-card-v2.cat-challenge .event-card-content h3 {
+body .recommended-v2 .recommended-event-card-v2.cat-challenge .event-card-content h3 {
 	color: var(--challenge);
 }
 
-body .recommended-v2 .recommend-card-v2.cat-online .event-card-content h3 {
+body .recommended-v2 .recommended-event-card-v2.cat-online .event-card-content h3 {
 	color: var(--online);
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-meta small {
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta {
+	display: grid;
+	gap: 8px;
+}
+
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta small {
 	color: #075bb9;
 	font-weight: 900;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-meta div,
-body .recommended-v2 .recommend-card-v2 .event-card-meta small,
-body .recommended-v2 .recommend-card-v2 .event-card-meta span {
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta div,
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta small,
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta span {
 	display: block;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-meta div {
-	margin-top: 6px;
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta div {
+	margin-top: 0;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-actions {
+body .recommended-v2 .recommended-event-card-v2 .event-card-actions {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-	grid-column: 1;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	width: 100%;
 	box-sizing: border-box;
 	gap: 8px;
-	margin: 24px 0 0;
+	margin: 18px 0 0;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-actions .btn {
+body .recommended-v2 .recommended-event-card-v2 .event-card-actions .btn {
 	display: block;
 	width: 100%;
 	min-width: 0;
@@ -1725,13 +1851,13 @@ body .recommended-v2 .recommend-card-v2 .event-card-actions .btn {
 	text-align: center;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-actions .primary-admin-save {
+body .recommended-v2 .recommended-event-card-v2 .event-card-actions .primary-admin-save {
 	border-color: #075bb9;
 	background: #075bb9;
 	color: #fff;
 }
 
-body .recommended-v2 .recommend-card-v2 .event-card-meta span.remaining-badge {
+body .recommended-v2 .recommended-event-card-v2 .event-card-meta span.remaining-badge {
 	display: inline-block;
 	width: auto;
 	margin: 0 0 0 0.35rem;
@@ -1740,6 +1866,79 @@ body .recommended-v2 .recommend-card-v2 .event-card-meta span.remaining-badge {
 	border-radius: 4px;
 	color: #0874e8;
 	vertical-align: middle;
+}
+
+body .event-list-section .event-list-card-v2,
+body .search-results-v2 .event-list-card-v2 {
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-rows: auto auto;
+	gap: 16px;
+	padding: 10px;
+	border: 1px solid rgba(22, 97, 189, 0.14);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.97);
+	box-shadow: 0 4px 12px rgba(17, 92, 178, 0.08);
+	text-decoration: none;
+	color: var(--ink);
+}
+
+body .event-list-section .event-list-card-v2 .event-card-top,
+body .search-results-v2 .event-list-card-v2 .event-card-top {
+	display: block;
+	width: 100%;
+	height: 104px;
+	min-height: 104px;
+	margin-bottom: 8px;
+}
+
+body .event-list-section .event-list-card-v2 .event-card-top .event-list-image,
+body .search-results-v2 .event-list-card-v2 .event-card-top .event-list-image,
+body .event-list-section .event-list-card-v2 .event-card-image-empty,
+body .search-results-v2 .event-list-card-v2 .event-card-image-empty {
+	display: block;
+	width: 100%;
+	height: 104px;
+	margin: 0;
+	box-sizing: border-box;
+	object-fit: cover;
+}
+
+body .event-list-section .event-list-card-v2 .event-card-content,
+body .search-results-v2 .event-list-card-v2 .event-card-content {
+	display: flex;
+	flex-direction: column;
+	grid-column: 1;
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+	align-self: stretch;
+	justify-self: stretch;
+}
+
+body .event-list-section .event-list-card-v2.cat-study .event-card-content h3,
+body .search-results-v2 .event-list-card-v2.cat-study .event-card-content h3 {
+	color: var(--study);
+}
+
+body .event-list-section .event-list-card-v2.cat-exchange .event-card-content h3,
+body .search-results-v2 .event-list-card-v2.cat-exchange .event-card-content h3 {
+	color: var(--exchange);
+}
+
+body .event-list-section .event-list-card-v2.cat-seminar .event-card-content h3,
+body .search-results-v2 .event-list-card-v2.cat-seminar .event-card-content h3 {
+	color: var(--seminar);
+}
+
+body .event-list-section .event-list-card-v2.cat-challenge .event-card-content h3,
+body .search-results-v2 .event-list-card-v2.cat-challenge .event-card-content h3 {
+	color: var(--challenge);
+}
+
+body .event-list-section .event-list-card-v2.cat-online .event-card-content h3,
+body .search-results-v2 .event-list-card-v2.cat-online .event-card-content h3 {
+	color: var(--online);
 }
 
 .event-list-section {

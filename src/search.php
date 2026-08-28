@@ -51,7 +51,7 @@ function search_card(array $event): string {
 	$detailUrl = search_escape(app_url('detail.php?eventId=' . rawurlencode((string)($event['eventId'] ?? ''))));
 	$title = search_escape((string)($event['shortTitle'] ?: ($event['title'] ?? 'イベント')));
 	$desc = search_escape((string)($event['shortDescription'] ?? ''));
-	return '<a class="event-card-common recommend-card-v2 ' . $catClass . '" href="' . $detailUrl . '">' . $iconHtml . '<div class="event-card-top"><img class="event-list-image" src="' . $image . '" alt=""></div><div class="event-card-content"><div class="event-card-date">' . $dateHtml . '</div><h3>' . $title . '</h3><p>' . $desc . '</p></div></a>';
+	return '<a class="event-card-common event-list-card-v2 ' . $catClass . '" href="' . $detailUrl . '">' . $iconHtml . '<div class="event-card-top"><img class="event-list-image" src="' . $image . '" alt=""></div><div class="event-card-content"><div class="event-card-date">' . $dateHtml . '</div><h3>' . $title . '</h3><p>' . $desc . '</p></div></a>';
 }
 ?>
 <!doctype html>
@@ -74,9 +74,9 @@ function search_card(array $event): string {
 					<option value="">参加目的選択</option><?php foreach ($purposes as $id => $label): ?><option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>" <?= $purpose === $id ? ' selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
 				</select><button class="btn" type="submit">検索</button></form>
 		</section>
-		<section class="recommended-v2 event-list-section">
+		<section class="search-results-v2 event-list-section">
 			<h1 class="search-results-heading">イベント検索結果</h1><?php if (!$events): ?><p class="search-no-results">該当するイベントはありません。</p><?php endif; ?>
-			<div class="recommend-list-v2"><?php foreach ($events as $event): ?><?= search_card($event) ?><?php endforeach; ?></div>
+			<div class="event-list-grid-v2"><?php foreach ($events as $event): ?><?= search_card($event) ?><?php endforeach; ?></div>
 		</section>
 	</main>
 </body>

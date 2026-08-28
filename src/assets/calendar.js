@@ -128,7 +128,7 @@
 		const list = document.getElementById('eventList');
 		if (!list) return;
 		list.innerHTML = state.eventCache.map((item) => eventCard(item, false)).join('');
-		list.querySelectorAll('.recommend-card-v2').forEach((card) => card.addEventListener('click', () => {
+		list.querySelectorAll('.event-list-card-v2').forEach((card) => card.addEventListener('click', () => {
 			openDetail({ eventId: card.dataset.eventId });
 		}));
 	}
@@ -136,19 +136,30 @@
 	function eventCard(item, recommended) {
 		const id = String(item.eventId || item.id || '');
 		const detailUrl = 'detail.php?eventId=' + encodeURIComponent(id);
-		const details = recommended ? (() => {
-			const remaining = item.showRemaining && item.remainingNumber !== '' ? '<span class="remaining-badge">' + esc(item.remainingNumber) + '</span>' : '';
-			const optional = [['場所', item.location], ['対象者', item.targetAudience], ['参加メリット', item.merit], ['参加費', item.fee], ['申し込み締め切り日時', item.applicationDeadline]].filter(([, value]) => String(value || '').trim()).map(([label, value]) => '<div><small>' + label + '</small><span>' + esc(value) + '</span></div>').join('');
-			const capacity = item.capacity || remaining ? '<div><small>定員</small><span>' + esc(item.capacity || '') + remaining + '</span></div>' : '';
-			return '<div class="event-card-meta">' + optional + capacity + '</div>';
-		})() : '';
-		const actions = recommended ? '<div class="event-card-actions"><a class="btn" href="' + esc(detailUrl) + '">詳細を見る</a>' + (item.applicationUrl ? '<a class="btn primary-admin-save" href="' + esc(item.applicationUrl) + '" target="_blank" rel="noopener">申し込む</a>' : '') + '</div>' : '';
+		const cardClass = recommended ? 'recommended-event-card-v2' : 'event-list-card-v2';
 		const dateParts = formatRecommendDateParts(item);
 		const date = '<strong class="recommend-date-v2"><span class="recommend-date-main-v2">' + esc(dateParts.date) + '</span>' + (dateParts.weekday ? '<span class="recommend-weekday-v2">' + esc(dateParts.weekday) + '</span>' : '') + '<span class="recommend-start-time">' + esc(formatCardTime(item)) + '</span></strong>';
 		const typeClass = categoryClass(item);
 		const typeIcon = categoryIcon(item) || categoryIconById(item.eventTypeId);
 		const icon = typeIcon ? '<img class="recommend-type-icon ' + esc(typeClass) + '" src="assets/images/' + esc(typeIcon) + '" alt="">' : '';
-		return '<article class="event-card-common recommend-card-v2 ' + typeClass + '" data-detail-url="' + esc(detailUrl) + '" data-event-id="' + esc(id) + '">' + icon + '<div class="event-card-top"><img class="event-list-image" src="' + esc(item.mainImageUrl || 'assets/images/people.png') + '" alt=""></div><div class="event-card-content"><div class="event-card-date">' + date + '</div><h3>' + esc(item.shortTitle || item.title || 'イベント') + '</h3><p>' + esc(item.shortDescription || '') + '</p>' + details + '</div>' + actions + '</article>';
+		const details = recommended ? (() => {
+			const summaryItems = [];
+			const location = String(item.location || '').trim();
+			if (location) summaryItems.push({ icon: 'place.png', value: location });
+			const capacity = String(item.capacity ?? '').trim();
+			const remaining = item.showRemaining && String(item.remainingNumber ?? '').trim() ? String(item.remainingNumber) : '';
+			const capacityValue = [];
+			if (capacity) capacityValue.push(esc(capacity));
+			if (remaining) capacityValue.push('<span class="recommended-remaining-badge">' + esc(remaining) + '</span>');
+			if (capacityValue.length) summaryItems.push({ icon: 'team.png', value: capacityValue.join(' ') });
+			const fee = String(item.fee || '').trim();
+			if (fee) summaryItems.push({ icon: 'price.png', value: fee });
+			const summaryHtml = summaryItems.length ? '<div class="recommended-card-summary">' + summaryItems.map((entry) => '<div class="recommended-summary-item"><img class="recommended-summary-icon" src="assets/images/' + esc(entry.icon) + '" alt=""><span class="recommended-summary-value">' + entry.value + '</span></div>').join('') + '</div>' : '';
+			const optional = [['対象者', item.targetAudience], ['参加メリット', item.merit], ['申し込み締め切り日時', item.applicationDeadline]].filter(([, value]) => String(value || '').trim()).map(([label, value]) => '<div><small>' + label + '</small><span>' + esc(value) + '</span></div>').join('');
+			return '<div class="recommended-card-side"><div class="recommended-card-summary-wrap">' + summaryHtml + '</div>' + (optional ? '<div class="event-card-meta">' + optional + '</div>' : '') + '</div>';
+		})() : '';
+		const actions = recommended ? '<div class="event-card-actions"><a class="btn" href="' + esc(detailUrl) + '">詳細を見る</a>' + (item.applicationUrl ? '<a class="btn primary-admin-save" href="' + esc(item.applicationUrl) + '" target="_blank" rel="noopener">申し込む</a>' : '') + '</div>' : '';
+		return '<article class="event-card-common ' + cardClass + ' ' + typeClass + '" data-detail-url="' + esc(detailUrl) + '" data-event-id="' + esc(id) + '">' + icon + '<div class="recommended-card-body"><div class="recommended-card-main"><div class="event-card-top"><img class="event-list-image" src="' + esc(item.mainImageUrl || 'assets/images/people.png') + '" alt=""></div><div class="event-card-content"><div class="event-card-date">' + date + '</div><h3>' + esc(item.shortTitle || item.title || 'イベント') + '</h3><p>' + esc(item.shortDescription || '') + '</p></div></div>' + details + '</div>' + actions + '</article>';
 	}
 
 	function formatCardDate(item) {
@@ -231,7 +242,7 @@
 		}
 		section.style.display = '';
 		list.innerHTML = items.map((item) => eventCard(item, true)).join('');
-		list.querySelectorAll('.recommend-card-v2').forEach((card) => card.addEventListener('click', (event) => {
+		list.querySelectorAll('.recommended-event-card-v2').forEach((card) => card.addEventListener('click', (event) => {
 			if (event.target.closest('a')) return;
 			openDetail({ eventId: card.dataset.eventId });
 		}));
