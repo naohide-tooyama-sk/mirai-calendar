@@ -30,7 +30,7 @@ $boot = bootstrap_calendar_payload();
 	<link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/styles.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 
-<body class="calendar-page">
+<body>
 	<div id="app" class="page-shell"></div>
 	<script>
 		window.__BOOTSTRAP__ = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
