@@ -11,7 +11,7 @@ $runtimeConfig = get_runtime_config();
 $searchTimezone = new DateTimeZone($runtimeConfig['timezone']);
 $today = new DateTimeImmutable('today', $searchTimezone);
 $events = array_filter(get_event_cache(), static function (array $event) use ($type, $purpose, $today, $searchTimezone): bool {
-	$startValue = trim((string)($event['startTime'] ?? $event['date'] ?? ''));
+	$startValue = trim((string)($event['date'] ?? $event['startTime'] ?? ''));
 	if ($startValue === '') {
 		return false;
 	}
@@ -61,7 +61,7 @@ function search_card(array $event): string {
 	$icon = ['study' => 'study.png', 'networking' => 'team.png', 'seminar' => 'seminar.png', 'challenge' => 'challenge.png', 'online' => 'online.png'][$typeId] ?? '';
 	$iconHtml = $icon ? '<img class="recommend-type-icon ' . $catClass . '" src="' . search_escape(app_url('assets/images/' . $icon)) . '" alt="">' : '';
 	$image = search_escape((string)($event['mainImageUrl'] ?: app_url('assets/images/people.png')));
-	$dateParts = search_date_parts((string)($event['startTime'] ?? $event['date'] ?? ''));
+	$dateParts = search_date_parts((string)($event['date'] ?? $event['startTime'] ?? ''));
 	$dateHtml = '<strong class="recommend-date-v2"><span class="recommend-date-main-v2">' . search_escape($dateParts['date']) . '</span>' . ($dateParts['weekday'] !== '' ? '<span class="recommend-weekday-v2">' . search_escape($dateParts['weekday']) . '</span>' : '') . '<span class="recommend-start-time">' . search_escape(search_datetime((string)($event['startTime'] ?? ''), 'H:i')) . '</span></strong>';
 	$detailUrl = search_escape(app_url('detail.php?eventId=' . rawurlencode((string)($event['eventId'] ?? ''))));
 	$title = search_escape((string)($event['shortTitle'] ?: ($event['title'] ?? 'イベント')));
