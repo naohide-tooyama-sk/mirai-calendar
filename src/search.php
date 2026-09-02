@@ -27,7 +27,12 @@ $events = array_filter(get_event_cache(), static function (array $event) use ($t
 	$purposeMatch = $purpose === '' || in_array($purpose, (array)($event['purposeTypeIds'] ?? []), true);
 	return $typeMatch && $purposeMatch;
 });
-usort($events, static fn(array $a, array $b): int => strcmp((string)($a['startTime'] ?? ''), (string)($b['startTime'] ?? '')));
+usort($events, static function (array $a, array $b): int {
+	$dateComparison = strcmp((string)($a['date'] ?? ''), (string)($b['date'] ?? ''));
+	return $dateComparison !== 0
+		? $dateComparison
+		: strcmp((string)($a['startTime'] ?? ''), (string)($b['startTime'] ?? ''));
+});
 
 function search_escape(string $value): string {
 	return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
