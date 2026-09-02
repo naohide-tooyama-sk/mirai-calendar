@@ -362,7 +362,7 @@ function get_cached_event_options(): array {
 }
 
 function resolve_recent_events_payload(): array {
-	$events = array_filter(get_event_cache(), static fn(array $event): bool => !empty($event['recommendedFlag']));
+	$events = array_filter(get_display_event_cache(), static fn(array $event): bool => !empty($event['recommendedFlag']));
 	return array_map(static function (array $event): array {
 		$event['id'] = $event['eventId'];
 		$event['titleText'] = $event['shortTitle'] ?: ($event['title'] ?? 'イベント');
@@ -872,6 +872,29 @@ function get_event_cache(): array {
 	return is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
 }
 
+function get_display_event_cache(): array {
+	$cfg = get_runtime_config();
+	$timezone = new DateTimeZone((string)$cfg['timezone']);
+	$today = new DateTimeImmutable('today', $timezone);
+	$futureMonths = $cfg['futureMonths'];
+	$lastDate = $futureMonths === null
+		? null
+		: $today->modify('first day of this month')->modify('+' . $futureMonths . ' months')->modify('last day of this month');
+
+	return array_values(array_filter(get_event_cache(), static function (array $event) use ($today, $lastDate, $timezone): bool {
+		$value = trim((string)($event['date'] ?? $event['startIso'] ?? $event['startTime'] ?? ''));
+		if ($value === '') {
+			return false;
+		}
+		try {
+			$date = (new DateTimeImmutable($value, $timezone))->setTimezone($timezone);
+			return $date >= $today && ($lastDate === null || $date <= $lastDate);
+		} catch (Throwable $e) {
+			return false;
+		}
+	}));
+}
+
 function get_calendar_cache(): array {
 	$rows = read_json_txt(data_dir() . '/calender_cache.txt', []);
 	return is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
@@ -1226,7 +1249,7 @@ function bootstrap_calendar_payload(): array {
 			'assetBaseUrl' => app_url('assets/images/'),
 		],
 		'recentEvents' => resolve_recent_events_payload(),
-		'eventCache' => get_event_cache(),
+		'eventCache' => get_display_event_cache(),
 		'calendarCache' => get_calendar_cache(),
 		'calendars' => get_calendars(false),
 		'cacheData' => get_cached_month_data($year, $month),

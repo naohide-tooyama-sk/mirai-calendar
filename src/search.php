@@ -10,7 +10,10 @@ $purposes = purpose_type_definitions();
 $runtimeConfig = get_runtime_config();
 $searchTimezone = new DateTimeZone($runtimeConfig['timezone']);
 $today = new DateTimeImmutable('today', $searchTimezone);
-$events = array_filter(get_event_cache(), static function (array $event) use ($type, $purpose, $today, $searchTimezone): bool {
+$lastDate = $runtimeConfig['futureMonths'] === null
+	? null
+	: $today->modify('first day of this month')->modify('+' . $runtimeConfig['futureMonths'] . ' months')->modify('last day of this month');
+$events = array_filter(get_event_cache(), static function (array $event) use ($type, $purpose, $today, $lastDate, $searchTimezone): bool {
 	$startValue = trim((string)($event['date'] ?? $event['startTime'] ?? ''));
 	if ($startValue === '') {
 		return false;
@@ -20,7 +23,7 @@ $events = array_filter(get_event_cache(), static function (array $event) use ($t
 	} catch (Throwable $e) {
 		return false;
 	}
-	if ($eventDate < $today->format('Y-m-d')) {
+	if ($eventDate < $today->format('Y-m-d') || ($lastDate !== null && $eventDate > $lastDate->format('Y-m-d'))) {
 		return false;
 	}
 	$typeMatch = $type === '' || (string)($event['eventTypeId'] ?? '') === $type;
