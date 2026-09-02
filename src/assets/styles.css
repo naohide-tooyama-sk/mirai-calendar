@@ -22,11 +22,20 @@ body {
 	min-height: 100%;
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	color: var(--ink);
-	background: #dff4ff url("images/background.png") center top / cover fixed no-repeat;
+	background: #dff4ff;
 }
 
 body {
 	overflow-x: hidden;
+	isolation: isolate;
+}
+
+body::before {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background: #dff4ff url("images/background.png") center top / cover no-repeat;
+	content: "";
 }
 
 button,
@@ -485,7 +494,11 @@ body.page-exit-left .v2-main {
 }
 
 .detail-page {
-	background: #eaf7ff url("images/background.png") center top / cover fixed no-repeat;
+	background-color: #eaf7ff;
+}
+
+.detail-page::before {
+	background-color: #eaf7ff;
 }
 
 .detail-shell {
@@ -1515,8 +1528,16 @@ textarea {
 
 	html,
 	body {
+		background-color: #dff4ff;
+	}
+
+	body::before {
 		background-size: 100vw auto;
-		background-attachment: fixed;
+	}
+
+	body.detail-page,
+	body.detail-page::before {
+		background-color: #eaf7ff;
 	}
 
 	.admin-shell {
