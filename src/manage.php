@@ -13,6 +13,7 @@ if (isset($_GET['logout'])) {
 	exit;
 }
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['password'])) {
 	$username = trim((string)$_POST['username']);
 	$password = (string)$_POST['password'];
@@ -36,7 +37,7 @@ $bootstrap = [
 
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<title>Mirai Calendar Admin</title>
 	<link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/styles.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>

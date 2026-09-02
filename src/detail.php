@@ -33,7 +33,7 @@ $boot = [
 	</script>
 
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<title>イベント詳細</title>
 	<link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('assets/images/schedule.png'), ENT_QUOTES, 'UTF-8') ?>">
 	<link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/styles.css'), ENT_QUOTES, 'UTF-8') ?>">

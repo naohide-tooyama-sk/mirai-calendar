@@ -28,6 +28,7 @@ body {
 body {
 	overflow-x: hidden;
 	isolation: isolate;
+	padding-top: env(safe-area-inset-top);
 }
 
 body::before {

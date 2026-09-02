@@ -10,6 +10,7 @@ if (!is_admin_logged_in()) {
 	exit;
 }
 
+
 $page = $managePage ?? trim((string)($_GET['page'] ?? ''));
 $titles = [
 	'config' => '共通設定',
@@ -34,7 +35,7 @@ $boot = [
 
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<title><?= htmlspecialchars($titles[$page], ENT_QUOTES, 'UTF-8') ?></title>
 	<link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/styles.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
